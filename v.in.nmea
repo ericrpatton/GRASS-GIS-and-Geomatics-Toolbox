@@ -1,0 +1,13 @@
+#! /bin/bash
+
+if  [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program."
+    exit 1
+fi
+
+INPUT=$1
+SUFFIX=`echo $1 | cut -d. -f2`
+
+proj -E -r `g.proj -jf` ${INPUT} | awk '{print $1, $2, $3, $4, $5}' | v.in.ascii in=- fs=space  output=`basename $INPUT .$SUFFIX` columns='Lat_DD double, Lon_DD double, Easting double, Northing double, Timestamp integer' x=3 y=4 cat=0 --o --v
+
+exit 0

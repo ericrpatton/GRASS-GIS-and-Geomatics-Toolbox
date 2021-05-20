@@ -1,0 +1,124 @@
+#! /bin/bash
+#
+############################################################################
+#
+# MODULE:        r.in.gsf for Grass 6.*
+# 
+# AUTHOR:   	 Eric Patton, Geological Survey of Canada (Atlantic)
+#				 <epatton at nrcan dot gc dot ca>
+# 
+# PURPOSE:       A shell script wrapper around Bob Courtneys r.in.gsf_bs C
+#				 program, used for correcting beam patternon gsf multibeam
+#				 backscatter files.
+#		 		 
+# COPYRIGHT:     (C) 2009-2010 by Eric Patton
+#
+#                This program is free software under the GNU General Public
+#                License (>=v3). Read the file COPYING that comes with GRASS
+#                for details.
+# 
+# Last Modified: March 10, 2010
+#   by Author
+#############################################################################
+#
+#%Module
+#% description: Processes gsf format backscatter files using Courtneys tools and imports into GRASS GIS.
+#%END
+
+#%option 
+#% key: resolution
+#% type: integer
+#% required: yes
+#% description: Resolution of output backscatter raster
+#%END
+
+#%option 
+#% key: angle
+#% type: integer
+#% required: no
+#% answer: 45
+#% description: Beam angle from nadir at which beam response curve is flattened
+#%END
+
+#%option 
+#% key: datum
+#% type: string
+#% required: no
+#% answer: WGS84
+#% description: Datum of output grid (default: WGS84)
+#%END
+
+#%option 
+#% key: list 
+#% type: string 
+#% required: yes 
+#% description: Text file containing list of input gsf files to process (must be in current directory) 
+#%END 
+
+#%option 
+#% key: output 
+#% type: string 
+#% required: no 
+#% description: Name of output GRASS raster 
+#%END
+
+#%option 
+#% key: running_mean
+#% type: integer
+#% required: no
+#% answer: 200
+#% description: Number of successive swaths to use in calculating mean beam response curve (default 200)
+#%END
+
+#%option 
+#% key: texture
+#% type: integer
+#% required: no
+#% answer: 0
+#% description: Value to use for backscatter texture (default: 0) 
+#%END
+
+if  [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program." 
+    exit 1
+fi
+
+if [ "$1" != "@ARGS_PARSED@" ] ; then
+     exec g.parser "$0" "$@"
+fi
+
+SCRIPT=`basename $0`
+
+# Setup clean exit for Ctrl-C or similar breaks.
+trap 'echo -e "\n\nUser break or similar caught; Exiting.\n" ; exit 1' 2 3 15
+
+RESOLUTION=$GIS_OPT_resolution
+ANGLE=$GIS_OPT_angle
+DATUM=$GIS_OPT_datum
+LIST=$GIS_OPT_list
+OUTPUT=$GIS_OPT_output
+RUNNING_MEAN=$GIS_OPT_running_mean
+TEXTURE=$GIS_OPT_texture
+
+# Assign output filename the same as input filename if none explicitly given.
+if [ -z "$OUTPUT" ] ; then
+	OUTPUT=`basename $INPUT .gsf`_gsf
+fi
+
+# The user can enter a text file listing backscatter mode corrections to make;
+# the program expects this file to be present in the current directory, even if 
+# it is an empty file. Check to see if the file exists (file name must be all uppercase),
+# and if it doesn't, create it.
+if [ ! -f "./MODE_CORRECTIONS" ] ; then
+	touch MODE_CORRECTIONS
+	
+	# Check status code to see if MODE_CORRECTIONS was created successfully
+	if [ "$?" -eq 1 ] ; then
+		echo -e "\nUnable to create the MODE_CORRECTIONS file in current
+		directory.	Check the permissions of the current directory"
+	fi	
+fi	
+
+r.in.gsf_bs "$RESOLUTION" "$ANGLE" "$DATUM" "$LIST" "$OUTPUT" "$RUNNING_MEAN" "$TEXTURE"
+
+exit 0

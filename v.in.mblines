@@ -1,0 +1,36 @@
+#!/bin/bash
+#
+# v.in.mblines - A script to import the navigation file created by mb.navdump_lines.sh
+# into a GRASS GIS database. Assumes a space separator between X and Y data
+# fields. Does no error-cehcking of the input file.
+#
+# Last Modified: December 12, 2019
+#
+# CHANGELOG: - Script created (02-03-2016)
+# 
+###############################################################################
+
+if  [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program."
+    exit 1
+fi
+
+SCRIPT=`basename $0`
+
+# Setup clean exit for Ctrl-C or similar breaks.
+trap 'echo -e "\n\nUser break or similar caught; Exiting.\n" ; exit 1' 2 3 15
+
+if [ "$#" -eq 0 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "-help" -o "$1" == "--help" ] ; then
+	echo -e "\nusage: $SCRIPT navfilename.txt\n"
+	exit 1
+fi
+
+NAV=$1
+
+v.in.lines in=${NAV} sep=space out=`basename $NAV .txt` --v --o 
+
+if [ "$?" -eq 0 ] ; then
+	echo -e "\nDone!"
+fi
+
+exit 0

@@ -1,0 +1,271 @@
+#!/bin/sh
+#
+##################################################################################
+#
+# MODULE:       v.mkhyperlinks for Grass 6.3
+# 
+# AUTHOR(S):   	Eric Patton, Geological Survey of Canada (Atlantic) 
+# 		<epatton at nrcan dot gc dot ca>
+#
+# PURPOSE:	Populates a vector attribute table column with the name
+#		of an image hyperlink for an associated vector point. Specifically, 
+#		this script autogenerates the name of an image file to hyperlink to when only
+#		supplied the station ID, exposure number, and a folder containing
+#		the image hyperlinks for that station. 
+#
+#		Hyperlinks can be viewed using d.hyperlink.
+#
+#		NOTE: This script hard-codes the naming convention that the image 
+#		hyperlink uses. Images *MUST* be named CruiseID_StationID_Exposure_Number,
+#		where the StationID and the ExposureNumber are both integers.	
+#		
+#
+# COPYRIGHT:    (C) 2007,2008 by Eric Patton
+#
+#               This program is free software under the GNU General Public
+#               License (>=v2). Read the file COPYING that comes with GRASS
+#	        for details.
+# 
+# Last Modified: January 4, 2008
+# 
+#    
+##################################################################################
+
+#%Module
+#% description: Autogenerates vector hyperlinks in an attribute table
+#%END
+
+#%flag
+#% key: c
+#% description: Create the specified hyperlink column in COLUMN parameter if it doesn't exist in the table
+#%END
+
+#%flag
+#% key: l
+#% description: List columns in attribute table
+#%END
+
+#%flag
+#% key: p 
+#% description: Print updated records
+#%END
+
+#%option
+#% key: map
+#% type: string
+#% gisprompt: old,vector,vector
+#% description: Input vector file containing station data.
+#% required: yes
+#%END
+
+#%option
+#% key: station_col
+#% type: string
+#% description: Name of column containing the station ID.
+#% answer: Station_ID
+#% required: yes
+#%END
+
+#%option
+#% key: station_type_col
+#% type:string
+#% description: Name of column containing the station type
+#% answer: Station_Type
+#% required: yes
+#%END
+
+#%option
+#% key: exposure_col
+#% type: string
+#% description: Name of column containing the exposure number.
+#% answer: Exposure
+#% required: yes
+#%END
+
+#%option
+#% key: layer
+#% type: integer
+#% description: layer of the linked table
+#% answer: 1
+#% required : no
+#%END
+
+#%option
+#% key: column
+#% type: string
+#% description: attribute table column containing name of document to be hyperlinked 
+#% answer: Hyperlink
+#% required : yes 
+#%END
+
+#%option
+#% key: linkdir
+#% type: string
+#% description: Directory under the current mapset containing images to hyperlink
+#% required: no
+#%END
+
+####################################################################
+#
+#			NOTES
+#
+####################################################################
+
+# The hyperlink documents are assumed to be images, with filenames formatted as:
+# CRUISE_STATION_EXPOSURE. 
+
+
+
+SCRIPT=`basename $0`
+
+if  [ -z "$GISBASE" ] ; then
+    echo -e "\nYou must be in GRASS GIS to run this program." 2>&1
+    exit 1
+fi
+
+if [ "$1" != "@ARGS_PARSED@" ] ; then
+     exec g.parser "$0" "$@"
+fi
+
+# Check if we have awk.
+if [ ! -x "`which awk`" ] ; then
+    echo "$SCRIPT: awk required, please install awk or gawk first" >&2
+    exit 1
+fi
+
+
+# Setting environment, so that awk works properly in all languages.
+unset LC_ALL
+export LC_NUMERIC=C
+
+# Rename input parameters.
+MAP=$GIS_OPT_map
+STATION_COL=$GIS_OPT_station_col
+STATION_TYPE_COL=$GIS_OPT_station_type_col
+EXPOSURE_COL=$GIS_OPT_exposure_col
+LAYER=$GIS_OPT_layer
+COLUMN=$GIS_OPT_column
+
+# Capture Location, Mapset, etc. to feed full directory path for the $LINKDIR.
+# The $LINKDIR directory is assumed to be under the current $MAPSET.
+eval `g.gisenv`
+: ${GISBASE?} ${GISDBASE?} ${LOCATION_NAME?} ${MAPSET?}
+LOCATION=$GISDBASE/$LOCATION_NAME/$MAPSET/
+
+LINKDIR=$LOCATION`echo $GIS_OPT_LINKDIR | sed 's/\\/$//'` #Strips any trailing 'slash' character from the end of the image folder path.
+
+# PROCEDURE FOR -l FLAG:
+if [ "$GIS_FLAG_l" -eq 1 ] ; then
+
+	v.info -c map=$MAP
+	exit 0
+fi
+
+# PROCEDURE FOR -c flag:
+# Check to see if the given COLUMN parameter exists in the attribute table.
+COLUMN_CHECK=`v.db.connect -c $MAP | grep $COLUMN | cut -d"|" -f2`
+if [ -z "$COLUMN_CHECK" ] ; then 
+	if [ "$GIS_FLAG_c" -eq 1 ] ; then
+		
+		v.db.addcol map="$MAP" layer="$LAYER" column="$COLUMN"
+
+	else
+		echo -e "\n$SCRIPT: Hyperlink column '$COLUMN' not found in table $TABLE. Exiting.\n" >&2
+		exit 1
+	fi
+fi
+
+NUMBER_OF_STATIONS=`v.db.select -c map="$MAP" layer="$LAYER" column="$STATION_COL" where="$EXPOSURE_COL = 1" | wc -l`
+STATION_LIST=`v.db.select map=$MAP column=$STATION_COL where="$EXPOSURE_COL=1 AND $STATION_TYPE_COL='Camera'" -c | awk 'BEGIN { ORS=","} {print $1}' | sed 's/\,$//'`
+
+for ((i=0; i<="$NUMBER_OF_STATIONS"; i++)) ; do
+
+		EXPOSURE_COUNTER=1
+		STATION_COUNTER="$i"
+		STATION_NUMBER=`echo $STATION_LIST | awk -F, -v COUNTER="$i" '{print $COUNTER}'`  
+		EXPOSURE_NUMBER=`v.db.select -c map=$MAP layer=$LAYER column=$EXPOSURE_COL where="$STATION_COL=$STATION_NUMBER AND $EXPOSURE_COL=$EXPOSURE_COUNTER"`
+		NEXT_STATION_NUMBER=`v.db.select -c map=$MAP layer=$LAYER column=$STATION_COL where="$EXPOSURE_COL=$EXPOSURE_COUNTER+1 AND $STATION_COL=$STATION_NUMBER"`
+
+	while [ "$NEXT_STATION_NUMBER" -eq "$STATION_NUMBER" ] ; do
+
+		SEARCH_STRING=${STATION_NUMBER}_${EXPOSURE_NUMBER}
+		
+		# The grep statement below is going to find matches in the LINKDIR directory that match
+		# any number of characters at the beginning of the string, followed by an underscore, then any
+		# number of zeroes, followed by the station number, an underscore, any number of zeroes, the exposure number,
+		# a period, then any number of characters at the end of the string, i.e., a file that looks like this:
+		# 
+		# Ex: 2002012_01_05.JPG <CRUISE_STATION_EXPOSURE>
+
+		MATCH=`ls "$LINKDIR" | grep "^.*_0*"$STATION_NUMBER"_0*"$EXPOSURE_NUMBER"\..*$"`
+
+		if [ -z "$MATCH" ] ; then
+			
+			# The current station number and exposure number combination either don't exist in the table,
+			# or they exist, yet do not have a matching hyperlink document in the $LINKDIR.
+			# If the station number and exposure combination can be found in the table, update the $COLUMN with the
+			# value 'None' and continue.
+
+			echo -e "\nNo image match found for Station $STATION_NUMBER exposure $EXPOSURE_NUMBER in $LINKDIR."
+			STATION_EXPOSURE_CHECK=`v.db.select map=$MAP where="$STATION_COL=$STATION_NUMBER AND $EXPOSURE_COL=$EXPOSURE_NUMBER"`
+
+			if [ -n "$STATION_EXPOSURE_CHECK" ] ; then
+			
+				v.db.update map="$MAP" layer="$LAYER" column="$COLUMN" value='None' where="$STATION_COL=$STATION_NUMBER AND $EXPOSURE_COL=$EXPOSURE_NUMBER"		
+			fi
+			
+		else
+	
+			v.db.update map="$MAP" layer="$LAYER" column="$COLUMN" value="$MATCH" where="$STATION_COL=$STATION_NUMBER AND $EXPOSURE_COL=$EXPOSURE_NUMBER"
+			
+			if [ "$GIS_FLAG_p" -eq 1 ] ; then
+				
+				v.db.select map=$MAP column=$STATION_COL,$EXPOSURE_COL,$COLUMN where="$STATION_COL=$STATION_NUMBER AND $EXPOSURE_COL=$EXPOSURE_NUMBER"
+			fi
+		fi
+
+		EXPOSURE_COUNTER=`expr $EXPOSURE_COUNTER + 1`
+		EXPOSURE_NUMBER=`v.db.select -c map=$MAP layer=$LAYER column=$EXPOSURE_COL where="$STATION_COL=$STATION_NUMBER AND $EXPOSURE_COL=$EXPOSURE_COUNTER"`
+		NEXT_STATION_NUMBER=`v.db.select -c map=$MAP layer=$LAYER column=$STATION_COL where="$EXPOSURE_COL=$EXPOSURE_COUNTER+1 AND $STATION_COL=$STATION_NUMBER"`
+				
+		if [ -z "$NEXT_STATION_NUMBER" ] ; then
+
+			NEXT_STATION_NUMBER=0
+		fi  
+		
+					
+	done
+
+	# Even though the while loop has failed, we still need to update the table one more time to get the last exposure 
+	MATCH=`ls "$LINKDIR" | grep "^.*_0*"$STATION_NUMBER"_0*"$EXPOSURE_NUMBER"\..*$"`
+
+	if [ -z "$MATCH" ] ; then
+
+		# The current station number and exposure number combination either don't exist in the table,
+		# or they exist, yet do not have a matching hyperlink document in the $LINKDIR.
+		# If the station number and exposure combination can be found in the table, update the $COLUMN with the
+		# value 'None' and continue. NOTE: If the value uploaded to the table changes from
+		# the string "None" to some other value, be sure to modify the v.out.photodbase script, as it depends on this column
+		# containing the string value "None" for an exposure with a missing hyperlink.
+		
+		if [ -n "$STATION_EXPOSURE_CHECK" ] ; then
+			
+			v.db.update map="$MAP" layer="$LAYER" column="$COLUMN" value='None' where="$STATION_COL=$STATION_NUMBER AND $EXPOSURE_COL=$EXPOSURE_NUMBER"		
+		fi
+		
+	else
+		v.db.update map=$MAP layer=$LAYER column=$COLUMN value=$MATCH where="$STATION_COL=$STATION_NUMBER AND $EXPOSURE_COL=$EXPOSURE_NUMBER"
+	
+	fi
+
+	if [ "$GIS_FLAG_p" -eq 1 ] ; then
+				
+		v.db.select map=$MAP column=$STATION_COL,$EXPOSURE_COL,$COLUMN where="$STATION_COL=$STATION_NUMBER AND $EXPOSURE_COL=$EXPOSURE_NUMBER"
+	fi
+
+
+done
+	
+echo -e "\nDone."	
+
+exit 0

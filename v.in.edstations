@@ -1,0 +1,266 @@
+#! /bin/bash
+# 
+# MODULE:  v.in.edstations for Grass 6.*
+#
+# AUTHOR:  Eric Patton, Geological SUrvey of Canada (Atlantic)
+#
+# PURPOSE: This script takes a GSC-A Expedition Database stations text file as 	
+#          input and imports it into GRASS GIS vector format.
+# 
+# COPYRIGHT: Copyright (C) 2007-2015 by Eric Patton
+# 
+# Last Modified: January 28, 2015
+#
+###################################################################################
+
+#%Module
+#% description: Imports GSC-A Expedition Database stations into GRASS GIS vector format. 
+#%END
+
+#%flag
+#% key: l
+#% description: List column headings in input text file
+#%END
+
+#%option
+#% key: input
+#% type: string
+#% gisprompt: old_file,file,input
+#% description: Name of input ED stations file 
+#% required : yes 
+#%END
+
+#%option
+#% key: expedition_code
+#% type: string
+#% description: Number of the column containing the expedition code
+#% required: yes
+#%END
+
+#%option
+#% key: expedition_year
+#% type: integer
+#% description: Number of the column containing the expedition year
+#% required: yes
+#%END
+
+#%option
+#% key: expedition_vehicle_name
+#% type: string
+#% description: expedition vehicle name
+#% required: no
+#%END
+
+#%option
+#% key: datum
+#% type: string
+#% description: the horizontal datum
+#% required: no
+#%END
+
+#%option
+#% key: station_number
+#% type: integer
+#% description: the station id
+#% required: yes
+#%END
+
+#%option
+#% key: old_station_number
+#% type: string
+#% description: the old station id
+#%END
+
+#%option
+#% key: station_type
+#% type: string
+#% description: the station type
+#% required: yes
+#%END
+
+#%option
+#% key: station_day_time
+#% type: string
+#% description: the julian time
+#% required: yes
+#%END
+
+#%option
+#% key: latitude
+#% type: double
+#% description: latitude coordinate
+#% required: yes
+#%END
+
+#%option
+#% key: longitude
+#% type: double
+#% description: the longitude coordinate
+#% required: yes
+#%END
+
+#%option
+#% key: depth_method
+#% type: string
+#% description: Number of column containing the depth method
+#% answer: 11
+#% required: yes
+#%END
+
+#%option
+#% key: water_depth
+#% type: double
+#% description: depth 
+#% required: no
+#%END
+
+#%option
+#% key: elevation_reference
+#% type: string
+#% description: the elevation reference datum 
+#% required: no
+#%END
+
+#%option
+#% key: geographic_location
+#% type: string
+#% description: the geographic location
+#%END
+
+#%option
+#% key: seismic_expedition_code
+#% type: string
+#% description: the expedition code of seismics cruise
+#% required: no
+#%END
+
+#%option
+#% key: seismic_gmt
+#% type: integer
+#% description: the timestamp of the seismics used as reference
+#% required: no
+#%END
+
+#%option
+#% key: seismic_geophysical_type
+#% type: string
+#% description: Number of column containing the geophysical instrument type used as seismic reference
+#% required: no
+#%END
+
+#%option
+#% key: seismic_record_comments
+#% type: string
+#% description: the seismic records comment field
+#% required: no
+#%END
+
+
+if  [ -z ${GISBASE} ] ; then
+ echo "You must be in GRASS GIS to run this program." 
+ exit 1
+fi
+
+if [ "$1" != "@ARGS_PARSED@" ] ; then
+     exec g.parser "$0" "$@"
+fi
+
+# Setup clean exit for Ctrl-C or similar breaks.
+trap 'echo -e "\n\nUser break or similar caught; Exiting.\n" ; exit 1' 2 3 15
+
+SCRIPT=`basename $0`
+
+# Rename parameters.
+INPUT=$GIS_OPT_input
+EXPEDITION_CODE=$GIS_OPT_expedition_code
+EXPEDITION_YEAR=$GIS_OPT_expedition_year
+EXPEDITION_VEHICLE_NAME=$GIS_OPT_expedition_vehicle_name
+DATUM=$GIS_OPT_datum
+STATION_NUMBER_COL=$GIS_OPT_station_number_col
+OLD_STATION_NUMBER_COL=$GIS_OPT_old_station_number_col
+STATION_TYPE_COL=$GIS_OPT_station_type_col
+STATION_DAY_TIME_COL=$GIS_OPT_station_day_time_col
+LAT_COL=$GIS_OPT_lat_col
+LONG_COL=$GIS_OPT_long_col
+DEPTH_METHOD_COL=$GIS_OPT_depth_method_col
+WATER_DEPTH_COL=$GIS_OPT_water_depth_col
+ELEVATION_REFERENCE_COL=$GIS_OPT_elevation_reference_col
+GEOGRAPHIC_LOCATION_COL=$GIS_OPT_geographic_location_col
+SEISMIC_EXPEDITION_CODE_COL=$GIS_OPT_seismic_expedition_code_col
+SEISMIC_GMT_COL=$GIS_OPT_seismic_GMT_col
+SEISMIC_GEOPHYSICAL_TYPE_COL=$GIS_OPT_seismic_geophysical_type_col
+SEISMIC_RECORD_COMMENTS_COL=$GIS_OPT_seismic_record_comments_col
+
+# Check if we have awk and proj4.
+
+if [ ! -x "`which awk`" ] ; then
+	echo "${SCRIPT}: awk required, please install awk or gawk first." 1>&2
+	exit 1
+fi
+
+if [ ! -x "`which proj`" ] ; then
+	echo "${SCRIPT}: proj4 required, please install proj first." 1>&2
+	exit 1
+fi
+
+# Procedure for -l flag
+if [ "$GIS_FLAG_l" -eq 1 ] ; then
+	head -n1 ${INPUT}
+	exit 0
+fi
+
+# Setting environment, so that awk works properly in all languages.
+unset LC_ALL
+export LC_NUMERIC=C
+
+# Replace any periods that exist in the input filename, and substitute with an underscore.
+# This is because v.in.ascii only accepts SQL-compliant filename (no periods, spaces, filename can't begin with a numeral, etc.)	
+	
+OUTPUT=`echo ${INPUT} | tr '.' '_'`
+	
+# Convert the lat/longs into UTM's.
+
+awk -F, -v long_column=$LONG_COL -v lat_column=$LAT_COL 'NR > 1 {print $long_column, $lat_column}' $INPUT | proj -e 'ERROR' `g.proj -jf` +datum=WGS84 | awk 'BEGIN {OFS=","} $0 !~ /ERROR/ {print $1, $2}' > TMP_UTM_FILE.txt
+
+# Now store the eastings and northings into arrays, and print them out along with the rest of the columns of
+# data in the station table.
+
+awk -F, -v expedition_code=$EXPEDITION_CODE -v expedition_year=$EXPEDITION_YEAR -v expedition_vehicle_name=$EXPEDITION_VEHICLE_NAME -v datum=$DATUM -v station_number_col=$STATION_NUMBER_COL -v old_station_number_col=$OLD_STATION_NUMBER_COL -v station_type_col=$STATION_TYPE_COL -v station_day_time_col=$STATION_DAY_TIME_COL -v lat_col=$LAT_COL -v long_col=$LONG_COL -v depth_method_col=$DEPTH_METHOD_COL -v water_depth_col=$DEPTH_COL -v elevation_reference_col=$ELEVATION_REFERENCE_COL -v geographic_location_col=$GEOGRAPHIC_LOCATION_COL -v seismic_expedition_code_col=$SEISMIC_EXPEDITION_CODE_COL -v seismic_gmt_col=$SEISMIC_GMT_COL -v seismic_geophysical_type_col=$SEISMIC_GEOPHYSICAL_TYPE_COL -v seismic_record_comments_col=$SEISMIC_RECORD_COMMENTS_COL 'BEGIN {
+
+i=0 ; j=0 
+
+OFS=","
+
+while((getline < "TMP_UTM_FILE.txt") > 0) {
+array_easting[j]=$1
+array_northing[j]=$2
+j++	
+}
+
+close("TMP_UTM_FILE.txt")
+}
+	
+NR > 1 { if(substr($station_number_col,1,3) == "000") {
+	print expedition_code, expedition_year, expedition_vehicle_name, datum, substr(station_number_col,4), old_station_number_col, station_type_col, station_day_time_col, lat_col, long_col, array_easting[i], array_northing[i], depth_method_col, water_depth_col, elevation_reference_col, geographic_location_col, seismic_expedition_code_col, seismic_gmt_col, seismic_geophysical_type_col, seismic_record_comments_col
+}
+
+else
+	if(substr($station_number_col,1,2) == "00") {
+	print expedition_code, expedition_year, expedition_vehicle_name, datum, substr(station_number_col,3), old_station_number_col, station_type_col, station_day_time_col, lat_col, long_col, array_easting[i], array_northing[i], depth_method_col, water_depth_col, elevation_reference_col, geographic_location_col, seismic_expedition_code_col, seismic_gmt_col, seismic_geophysical_type_col, seismic_record_comments_col
+}
+
+else {
+	print expedition_code, expedition_year, expedition_vehicle_name, datum, station_number_col, old_station_number_col, station_type_col, station_day_time_col, lat_col, long_col, array_easting[i], array_northing[i], depth_method_col, water_depth_col, elevation_reference_col, geographic_location_col, seismic_expedition_code_col, seismic_gmt_col, seismic_geophysical_type_col, seismic_record_comments_col
+}
+
+i++
+
+}' ${INPUT} > ${OUTPUT}
+
+v.in.ascii --o --v input=${OUTPUT} output=${OUTPUT} fs="," x=11 y=12 cat=0 columns="Expedition_Code int, Expedition_Year int, Expedition_Vehicle_Name varchar(30), Datum varchar(20), Station_Number int, Old_Station_Number varchar(15), Station_Type varchar(30), Station_Day_Time varchar(10), Latitude double, Longitude double, Easting double, Northing double, Depth_Method varchar(15), Depth int, Elevation_Reference varchar(30), Geographic_Location varchar(100), Seismic_Expedition_Code varchar(50), Seismic_GMT varchar(20), Seismic_Geophysical_Type varchar(20), Seismic_Records_Comments varchar(100)" 
+
+rm TMP_UTM_FILE.txt
+
+echo -e "\nDone."
+
+exit 0

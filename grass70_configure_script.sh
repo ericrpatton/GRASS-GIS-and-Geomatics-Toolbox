@@ -1,0 +1,29 @@
+CFLAGS="-g -Wall" LDFLAGS="-s"
+./configure  \
+--with-tcltk \
+--with-tcltk-includes=/usr/include/tcl8.6 \
+--without-postgres \
+--with-sqlite \
+--with-sqlite-includes=/usr/include \
+--with-freetype \
+--with-freetype-includes=/usr/include/freetype2 \
+--with-readline \
+--with-readline-includes=/usr/include \
+--with-cxx \
+--with-gdal \
+--with-gdal-includes=/usr/include/gdal \
+--enable-largefile \
+--with-proj \
+--with-geos \
+--with-fftw \
+--with-fftw-includes=/usr/include \
+--with-fftw-libs=/usr/lib \
+--with-opengl \
+--with-opengl-includes=/usr/include/GL \
+--with-python=yes \
+--with-netcdf=yes \
+--with-netcdf-includes=/usr/include \
+--with-nc=/usr/bin/nc-config \
+--with-wxwidgets \
+--without-zstd \
+--with-cairo 

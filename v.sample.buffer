@@ -1,0 +1,217 @@
+#!/bin/bash
+############################################################################
+#
+# MODULE:	v.sample.buffer for GRASS 6.0 (2004/05/15)
+#		
+# AUTHOR(S):	Trevor Wiens 
+#
+# PURPOSE:	samples buffers around vector points and writes results to
+#		vector attribute table
+# COPYRIGHT:	(C) 2005 by Trevor Wiens
+#
+#		This program is free software under the GNU General Public
+#		License (>=v2). Read the file COPYING that comes with GRASS
+#		for details.
+#
+#############################################################################
+
+#%Module
+#% 	description: Samples specified raster layers within a user specified distance from points in a specified vector layer. 
+#%End
+#%option
+#%	key: regionname
+#% 	type: string
+#%	gisprompt: old,windows,region
+#%	description: Named region for geographic extent of region to survey
+#%	required: yes
+#%end
+#%option
+#%	key: vectfile
+#%	type: string
+#%	gisprompt: old,vector,vector
+#%	description: Vector file to be used to survey region
+#%	required: yes
+#%end
+#%option
+#%	key: buffersize
+#% 	type: double
+#%	description: Size of buffer in map units around each object to survey
+#%	required: yes
+#% 	answer: 50.0
+#%end
+#%option
+#%	key: rasters
+#%	type: string
+#%	gisprompt: old,cell,raster
+#%	description: Rasters to be surveyed
+#%	multiple: yes
+#%	required: yes
+#%end
+#%option
+#%	key:stats
+#%	type: string
+#%	options: mean,minimum,maximum,range,variance,standard_deviation,diversity,mode,mode_percent
+#%	description: Statistics to be calculated from buffer area values
+#%	multiple: yes
+#%	required: yes
+#%end
+
+if [ "$1" != "@ARGS_PARSED@" ] ; then
+  exec g.parser "$0" "$@"
+fi
+
+if test "$GISBASE" = ""; then
+    echo "You must be in GRASS GIS to run this program." >&2
+    exit 1
+fi
+REGIONNAME="$GIS_OPT_regionname"
+VECTFILE="$GIS_OPT_vectfile"
+BUFFERSIZE="$GIS_OPT_buffersize"
+RASTERS="$GIS_OPT_rasters"
+STATS="$GIS_OPT_stats" 
+
+# CONCEPT
+# for site 1 2 3 4 5 ... ; do
+#   v.to.rast where='site=7'
+#   g.region (zoom to a little bigger than buffer dist)
+#   r.buffer out=MASK
+#   r.univar base_map
+# done
+
+# get location information
+GISBASE=`eval g.gisenv get=GISBASE`
+GISDBASE=`eval g.gisenv get=GISDBASE`
+LOCATION_NAME=`eval g.gisenv get=LOCATION_NAME`
+MAPSET=`eval g.gisenv get=MAPSET`
+LOCATION=$GISDBASE/$LOCATION_NAME/$MAPSET
+
+g.remove rast=MASK vect=tempvect,tempbuff >/dev/null 2>/dev/null
+g.region region=$REGIONNAME
+
+OLDIFS=$IFS
+IFS=,
+# get list of categories (note that first item in list is 'cat'
+CATLIST=`eval echo "SELECT cat FROM $VECTFILE" | db.select | tr '\n' ','`
+CATLIST=${CATLIST:4}
+count=`eval echo "SELECT 'count(cat)' FROM $VECTFILE" | db.select `
+total=${count:6}
+
+# create fields
+for rastfile in $RASTERS ; do
+	for stat in $STATS ; do
+		CN=`echo $rastfile | tr 'A-Z' 'a-z'`"_"$stat
+		CN=`echo $CN | tr '.' '_'`
+		echo "ALTER TABLE $VECTFILE ADD COLUMN $CN numeric" | db.execute
+	done
+done	
+
+# generate statistics and update table
+count=0
+starttime=`eval date`
+for catnum in $CATLIST ; do
+	count=$(($count + 1))
+	echo "Processing "$count" of "$total 
+	v.extract input=$VECTFILE output=tempvect where="cat=$catnum" 2>/dev/null 1>/dev/null
+	v.buffer input=tempvect output=tempbuff buffer=$BUFFERSIZE  2>/dev/null 1>/dev/null
+	g.region vect=tempbuff 2>/dev/null 1>/dev/null
+	v.to.rast input=tempbuff output=MASK use=cat 2>/dev/null 1>/dev/null
+	for rastfile in $RASTERS ; do
+		# get all the cells
+		r.stats -1n input=$rastfile > cells 
+		div=`cat cells | sort -n -u | wc -l`
+		# routine for calculating max and min copied and modified 
+		# from r.univar.sh
+		cat cells | awk 'BEGIN {sum = 0.0 ; sum2 = 0.0} 
+		NR == 1{min = $1 ; max = $1}
+    		   {sum += $1 ; sum2 += $1 * $1 ; N++}
+    		   {
+        		if ($1 > max) {max = $1}
+        		if ($1 < min) {min = $1}
+    		   }
+		END{
+		range = max-min
+		mean = sum/N
+		var = (sum2 - sum*sum/N)/N
+		stddev = sqrt((sum2 - sum*sum/N)/N)
+		print max " " min " " range " " mean " " var " " stddev
+		}' > stats
+		max=`cat stats | awk '{print $1}'`
+		min=`cat stats | awk '{print $2}'`
+		range=`cat stats | awk '{print $3}'`
+		mean=`cat stats | awk '{print $4}'`
+		var=`cat stats | awk '{print $5}'`
+		stddev=`cat stats | awk '{print $6}'`
+		# determine mode and mode percent
+		vallist=`cat cells | sort -n -u | tr '\n' ','`
+		flen=$(( ${#vallist} - 1 ))
+		vallist=${vallist:0:flen}
+		countlist=( )
+		values=( )
+		x=0
+		for val in $vallist ; do
+			values[x]=$val
+			countlist[x]=`grep -c -e $val$ cells`
+			let "x += 1"
+		done
+		maxcount=${countlist[0]}
+		reccount=$x
+		x=0
+		y=$x
+		while [ "$x" -lt "$reccount" ]  
+		do
+			if [ "${countlist[x]}" -gt "$maxcount" ] ; then
+				maxcount=${countlist[x]}
+				y=$x
+			fi
+			let "x += 1"
+		done
+		mode=${values[y]}
+		modecount=${countlist[y]}	
+		cellcount=`wc -l cells | awk '{print $1}'`
+		modpct=$(echo "scale=6;$modecount/$cellcount*100" | bc)
+		FIELDS="update $VECTFILE set"
+		for stat in $STATS ; do
+			CN=`echo $rastfile | tr 'A-Z' 'a-z'`"_"$stat
+			CN=`echo $CN | tr '.' '_'`
+			if [ $stat == 'minimum' ] ; then
+				FIELDS=$FIELDS" "$CN"="$min","
+			fi
+			if [ $stat == 'maximum' ] ; then
+				FIELDS=$FIELDS" "$CN"="$max","
+			fi
+			if [ $stat == 'mean' ] ; then
+				FIELDS=$FIELDS" "$CN"="$mean","
+			fi
+			if [ $stat == 'variance' ] ; then
+				FIELDS=$FIELDS" "$CN"="$var","
+			fi
+			if [ $stat == 'mode' ] ; then
+				FIELDS=$FIELDS" "$CN"="$mode","
+			fi
+			if [ $stat == 'diversity' ] ; then
+				FIELDS=$FIELDS" "$CN"="$div","
+			fi
+			if [ $stat == 'mode_percent' ] ; then
+				FIELDS=$FIELDS" "$CN"="$modpct","
+			fi
+			if [ $stat == 'standard_deviation' ] ; then
+				FIELDS=$FIELDS" "$CN"="$stddev","
+			fi
+			if [ $stat == 'range' ] ; then
+				FIELDS=$FIELDS" "$CN"="$range","
+			fi
+		done
+		flen=$(( ${#FIELDS} - 1 ))
+		FIELDS=${FIELDS:0:flen}" where cat = "$catnum
+		echo "$FIELDS" | db.execute 
+	done
+	g.remove rast=MASK vect=tempvect,tempbuff > /dev/null
+	g.region region=$REGIONNAME
+done
+IFS=$OLDIFS
+
+#cleanup
+rm cells
+echo Done"!"
+echo Started: $starttime
+echo Finished: `eval date`
