@@ -1,0 +1,15 @@
+#! /bin/bash
+#
+# shl: (or, SHow Locked files): Runs mbdatalist -S in the current directory,
+# showing all locked files. Run mbdatalist -Y afterwards to remove any locked
+# files.
+#
+# Created: March 26, 2021
+# Modified: March 26, 2021
+# by Eric Patton
+#
+##############################################################################
+
+mbdatalist -F-1 -I datalist.mb-1 -S | grep "Locked"
+
+exit 0

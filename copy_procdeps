@@ -1,0 +1,51 @@
+#########################################################################################
+#! /bin/bash
+#
+# MODULE: 	copy_procdeps
+#
+# AUTHOR: 	Eric Patton, Geological Survey of Canada (Atlantic)
+#
+# PURPOSE:	To recurse through an HDCS directory and copy all of the ProcessedDepths
+#		files to the project folder level.
+#
+# COPYRIGHT:    (C) 2008 by Eric Patton
+#
+#
+# Last Modified: April 19, 2011
+#
+#########################################################################################
+
+# Capture Ctrl-C and similar breaks
+trap 'echo -e "\n\nUser break! Exiting.\n" ; exit 1' 2 3 15
+
+# Be sure to run this command from the topmost folder in the directory structure in
+# which all of the julian day folders reside.
+
+for DAY in `ls -1` ; do 
+	
+	if [ -d "$DAY" ] ; then
+
+		cd $DAY 
+		echo "Working on day $DAY..."
+		
+		for LINE in `ls -1` ; do 
+
+			if [ -d "$LINE" ] ; then
+
+				cd $LINE
+				if [ -f "./ProcessedDepths" ] ; then 
+					cp -v ProcessedDepths ../../${LINE}_ProcessedDepths
+				
+				elif [ -f "./PROCESSE" ] ; then
+					cp -v PROCESSE ../../${LINE}_ProcessedDepths
+				else
+					echo "Line $LINE seems to be missing a Processed Depths file." 		
+				fi
+			fi
+		cd ../
+		done
+	fi
+cd ../
+done
+
+exit 0

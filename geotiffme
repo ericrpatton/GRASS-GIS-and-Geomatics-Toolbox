@@ -1,0 +1,15 @@
+#! /bin/bash
+#
+#	A script to auto-generate true geotiffs using gdal tools.
+# 	
+#	Date Last Modified: May 8, 2012
+
+EPSG_CODE=$1
+
+if [ -z "$EPSG_CODE" ] ; then
+	read -p "Enter the EPSG code to use: " EPSG_CODE
+fi
+
+for MAP in *.tif ; do gdal_translate -a_srs "EPSG:$EPSG_CODE" -co "INTERLEAVE=PIXEL"	$MAP _$MAP && rm `basename $MAP .tif`.t?? && mv _$MAP $MAP; done
+
+exit 0

@@ -1,0 +1,112 @@
+#! /bin/bash 
+#
+############################################################################
+#
+# MODULE:        tfw2region
+#
+# AUTHOR:   	 Eric Patton, Geological Survey of Canada (Atlantic)
+#		 		 <epatton at nrcan dot gc dot ca>
+# 
+# PURPOSE:       To calculate the extent of a tiff image using its worldfile
+#				 and format this information as a -R flag for GMT.	 
+# 
+# COPYRIGHT:    (C) 2009 by Eric Patton
+#
+#                This program is free software under the GNU General Public
+#                License (>=v3). Read the file COPYING that comes with GRASS
+#                for details.
+# 
+# Last Modified: April 6, 2009
+#   by Author
+#############################################################################
+
+# NOTE: This script reuires the installation of Imagemagick and PROJ4.
+
+SCRIPT=`basename $0`
+
+# Setup clean exit for Ctrl-C or similar breaks.
+trap 'echo -e "\n\nUser break or similar caught; Exiting.\n" ; exit 1' 2 3 15
+
+WORLDFILE=$1
+ZONE=$2
+TIFF=`basename "$WORLDFILE" .tfw`.tif
+
+#echo "Worldfile name is $WORLDFILE."
+#echo "Tiff name is $TIFF."
+#echo ""
+
+# Use imagemagick program 'convert' to grab the rows and columns info
+identify "$TIFF" > "$TIFF".info
+ROWS=`cat "$TIFF".info | awk '{print $3}' | cut -d'x' -f1`
+COLS=`cat "$TIFF".info | awk '{print $3}' | cut -d'x' -f2`
+
+#echo "Number of rows in image is $ROWS."
+#echo "Number of columns in image is $COLS."
+#echo ""
+#sleep 5
+
+# The worldfile gives the upper left corner of the image.
+UL_EASTING=`awk 'NR == 5 {printf "%d\n", $1}' "$WORLDFILE"`
+UL_NORTHING=`awk 'NR == 6 {printf "%d\n", $1}' "$WORLDFILE"`
+RES=`awk 'NR == 1 {printf "%d\n", $1}' "$WORLDFILE"`
+
+#echo "Upper left corner coordinates:"
+#echo "Easting is $UL_EASTING."
+#echo "Northing is $UL_NORTHING."
+#echo "Image resolution is $RES."
+#sleep 3
+
+NS_EXTENT=$(($ROWS * $RES))
+EW_EXTENT=$(($COLS * $RES)) 
+
+#echo "Calculated N-S extent is $NS_EXTENT."
+#echo "Calculated E-Wextent is $EW_EXTENT."
+#echo ""
+#sleep 3
+
+LL_EASTING=$UL_EASTING
+LL_NORTHING=`expr $UL_NORTHING - $NS_EXTENT`
+
+#echo "Lower left coordinates:"
+#echo "Easting: $LL_EASTING"
+#echo "Northing: $LL_NORTHING"
+#echo ""
+#sleep 3
+
+UR_EASTING=`expr $LL_EASTING + $EW_EXTENT`
+UR_NORTHING=$UL_NORTHING
+
+#echo "Upper right coordinates:"
+#echo "Easting: $UR_EASTING"
+#echo "Northing: $UR_NORTHING"
+#echo ""
+#sleep 3
+
+echo "$LL_EASTING $LL_NORTHING" | proj -I -f '%0.6f' +proj=utm +datum=WGS84 +zone=$ZONE | awk '{print $1, $2}' > LL_geographic.txt
+echo "$UR_EASTING $UR_NORTHING" | proj -I -f '%0.6f' +proj=utm +datum=WGS84 +zone=$ZONE | awk '{print $1, $2}' > UR_geographic.txt
+
+LL_LONG=`cut -d' ' -f1 LL_geographic.txt` 
+LL_LAT=`cut -d' ' -f2 LL_geographic.txt`
+UR_LONG=`cut -d' ' -f1 UR_geographic.txt`
+UR_LAT=`cut -d' ' -f2 UR_geographic.txt`
+
+#echo "Lower Left Geographic coordinates:"
+#echo "Longitude: $LL_LONG"
+#echo "Latitude: $LL_LAT"
+#echo ""
+#sleep 3
+
+#echo "Upper right Geographic coordinates:"
+#echo "Longitude: $UR_LONG"
+#echo "Latitude: $UR_LAT"
+#echo ""
+#sleep 3
+
+#echo "Final -R string:"
+echo "$LL_LONG/$LL_LAT/$UR_LONG/$UR_LAT" 
+
+# Cleanup
+rm "$TIFF".info LL_geographic.txt UR_geographic.txt
+
+exit 0
+

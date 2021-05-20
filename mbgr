@@ -1,0 +1,16 @@
+#! /bin/bash
+#
+# mbre: A shorthand for running mb.gridtiles -p datalist.mb-1 in the current
+# directory, along with a few convenient helper scripts.
+# and mbgrdviz together.
+#
+# Created: March 26, 2021
+# Modified: March 26, 2021
+# by Eric Patton
+#
+##############################################################################
+
+export START=$(date +%_c)
+clear ; time mb.gridtiles -p region=$(mb.getregion) && job_finished_text.sh 
+
+exit 0
