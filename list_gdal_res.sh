@@ -4,7 +4,7 @@
 # list_gdal_res.sh : A simple script to print out the raster resolution of
 # a GDAL-readable raster.
 #
-# Last modified: December 2,, 2019
+# Last modified: December 2, 2019
 #
 #############################################################################
 
