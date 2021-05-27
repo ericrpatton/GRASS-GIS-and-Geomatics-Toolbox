@@ -19,6 +19,11 @@ fi
 
 SCRIPT=$(basename $0)
 
+if [ "$#" -ne 1 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
+	echo -e "\nusage: $SCRIPT rastername \n"
+	exit 1
+fi
+
 # Setup clean exit for Ctrl-C or similar breaks.
 trap 'echo -e "\n\nUser break or similar caught; Exiting.\n" ; exit 1' 2 3 15
 
@@ -26,6 +31,6 @@ MAP=$1
 
 [ -z "$MAP" ] &&  echo -e "\nError: $SCRIPT: No input rasters were given!" && exit 1
 
-r.out.gdal input=${MAP} output=${MAP}.tif type=Float32 nodata=-99999 -f --v --o 
+r.out.gdal input=${MAP} output=${MAP}.tif format=GTiff type=Float32 nodata=-99999 -f --v --o 
 
 exit 0
