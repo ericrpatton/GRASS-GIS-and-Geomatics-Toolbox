@@ -56,7 +56,7 @@ fi
 echo ""
 
 if [ ! -f ${LL_GRID} ] ; then
-	gdalwarp -t_srs "EPSG:4326" -overwrite -r cubic -multi -wo NUM_THREADS=ALL_CPUS -wm 2500 -of "GTiff" ${GRID} ${LL_GRID}
+	gdalwarp -t_srs "EPSG:4326" -overwrite -r cubic -multi -wo NUM_THREADS=ALL_CPUS -wm 30000000000 -of "GTiff" ${GRID} ${LL_GRID}
 fi
 
 echo ""
@@ -84,7 +84,7 @@ gmt figure map pdf A+n
 
 gmt grdimage -V ${LL_GRID} -C${COLORS} -I${SHADE} -J${PROJ} -R${REGION} -BWSen+t"$LL_GRID" -U+o0/-0.5i --PS_MEDIA=a4 -X1i -Y1i
 
-gmt coast -Df -Gtan -Wthinnest -Bfa2mf1mg2m   
+gmt coast -Df -Gtan -Wthinnest -Bfa5mf2mg2m   
 
 # MAP A Colourbar Placements:
 # Upper-Right
