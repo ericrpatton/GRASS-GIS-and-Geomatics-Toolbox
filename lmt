@@ -12,6 +12,8 @@
 
 PATTERN=$1
 
+# To-Do: Add a help messgae for -h flag and friends.
+
 ls -ltrh ${PATTERN} | tail -n1 | awk '{print $9}'
 
 exit 0
