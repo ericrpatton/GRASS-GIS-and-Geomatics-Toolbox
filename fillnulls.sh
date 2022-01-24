@@ -2,7 +2,7 @@
 #
 ############################################################################
 #
-# MODULE:        fillṉulls.sh
+# MODULE:        fillnulls.sh
 # 
 # AUTHOR:   	 Eric Patton, Geological Survey of Canada (Atlantic)
 #		 		 <epatton at nrcan dot gc dot ca>
@@ -31,12 +31,16 @@ fi
 trap 'echo -e "\n\nUser break or similar caught; Exiting.\n" ; exit 1' 2 3 15
 
 INPUT=${1}
+SIZE=${2}
 
-echo -e "\nRunning 3x3 median-filter on $INPUT...please standby.\n"
-r.neighbors input=${INPUT} output=fill.tmp method=median size=3 --o --v
-r.mapcalc "${INPUT}_fill = if(isnull(${INPUT}), fill.tmp, ${INPUT})" --o
+[[ -z ${SIZE} ]] && SIZE=3
 
-echo -e "\nProduced median-filled map ${INPUT}_fill."
+echo -e "\nRunning ${SIZE}x${SIZE} median-filter on $INPUT...please standby.\n"
+
+r.neighbors input=${INPUT} output=fill.tmp method=median size=${SIZE} --o --v 
+r.mapcalc "${INPUT}_fill${SIZE} = if(isnull(${INPUT}), fill.tmp, ${INPUT})" --o
+
+echo -e "\nProduced median-filled map ${INPUT}_fill${SIZE}."
 g.remove -f type=rast name=fill.tmp --q
 
 exit 0

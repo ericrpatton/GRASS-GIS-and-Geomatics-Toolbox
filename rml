@@ -1,7 +1,7 @@
 #! /bin/bash
 #
 # rml: (or, ReMove Locked files): Runs mbdatalist -Y on the current directory,
-# removing all locked files.
+# and on the default datalist, removing all locked files.
 #
 # Created: March 26, 2021
 # Modified: March 26, 2021
@@ -9,6 +9,8 @@
 #
 ##############################################################################
 
-mbdatalist -F-1 -I datalist.mb-1 -Y | grep "Removing"
+[[ -z ${1} ]] && DATALIST=datalist.mb-1 || DATALIST=$1
+
+mbdatalist -F-1 -I ${DATALIST} -Y | grep "Removing"
 
 exit 0

@@ -8,9 +8,7 @@
 # AUTHOR:   	 Eric Patton, Geological Survey of Canada (Atlantic)
 # 		         <Eric dot Patton at Canada dot ca>
 #
-# PURPOSE:       To create a quick grid file for editing in mbgrdviz. It uses
-# the processed version of the input datalist, so make sure to use the raw
-# datalist as the parameter.
+# PURPOSE:       To create a quick grid file for editing in mbgrdviz.
 #
 # COPYRIGHT:     (c) 2021 by Eric Patton
 #
@@ -41,14 +39,16 @@ if [ "$#" -gt 2 -o "$#" -eq 0 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help
 fi
 
 DATALIST=$1
-OUTPUT_ROOT="cleaning_grid_$(date '+%b%d_%Y')"
+OUTPUT_ROOT="cleaning_grid_$(date '+%F__%H-%M-%S')"
 RES=$2
 
-[ -z ${RES} ] && RES=100
-#[ ! -f "${PROCESSED_DATALIST}" ] && mbdatalist -F-1 -I ${DATALIST} -Z
+[[ -z ${RES} ]] && RES=100
 
-mbgrid -A2 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -JUTM20N -R$(mb.getregion) -V -O ${OUTPUT_ROOT}
-rm ${OUTPUT_ROOT}.grd.cmd
+# Use EPSG World Mercator projection; note: The format of the EPSG code is wrong
+# in the mbgrid manual page - use as it is below.
+mbgrid -A2 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -JEPSG:3395 -R$(mb.getregion) -V -O ${OUTPUT_ROOT}
+
+[[ -f "${OUTPUT_ROOT}.grd.cmd" ]] && rm ${OUTPUT_ROOT}.grd.cmd
 
 # For some bizarre reason, when mbgrid outputs a datalist of the files it
 # processed, it prepends a "P:" at the beginning of the line; we need to remove
@@ -56,5 +56,7 @@ rm ${OUTPUT_ROOT}.grd.cmd
 # edits.
 cat ${OUTPUT_ROOT}.mb-1 | sed 's/^P://' > tmp && mv tmp ${OUTPUT_ROOT}.mb-1
 cat ${OUTPUT_ROOT}.mb-1 | sed 's/^R://' > tmp && mv tmp ${OUTPUT_ROOT}.mb-1
+
+mbgrdviz -I ${OUTPUT_ROOT}.grd
 
 exit 0

@@ -14,7 +14,7 @@ SCRIPT=$(basename $0)
 trap 'echo -e "\n\n$SCRIPT: User break or similar caught; Exiting.\n" ; exit 1' 2 3 15
 
 if [ "$#" -ne 1 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
-	echo -e "\nusage: $SCRIPT XXXXXXXX \n"
+	echo -e "\nusage: $SCRIPT list_res.sh \n"
 	exit 1
 fi
 

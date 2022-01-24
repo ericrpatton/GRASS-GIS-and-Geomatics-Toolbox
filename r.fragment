@@ -97,8 +97,8 @@ ROWS=$GIS_OPT_rows
 COLS=$GIS_OPT_cols
 
 # Region-setting behaviour for the -r flag. If the -r is passed, the current
-# region settings will be respected; the default behaviour with no flag is to 
-# set the region to the maximum extent of the input raster.
+# region settings will be respected; the default behaviour without this flag is
+# to set the region to the maximum extent of the input raster.
 
 if [ "$GIS_FLAG_r" -eq 0 ] ; then
 
@@ -114,8 +114,8 @@ FULL_NS_EXTENT=`g.region -e | awk 'NR == 1 {printf "%i", $3}'`
 # Initial bounding box of input raster.
 FULL_NORTH=`g.region -g | grep "^n=" | cut -d'=' -f2 | awk '{printf "%i", $1}'`
 FULL_SOUTH=`g.region -g | grep "^s=" | cut -d'=' -f2 | awk '{printf "%i", $1}'`
-FULL_EAST=`g.region -g | grep "e=" | cut -d'=' -f2 | awk '{printf "%i", $1}'`
-FULL_WEST=`g.region -g | grep "w=" | cut -d'=' -f2 | awk '{printf "%i", $1}'`
+FULL_EAST=`g.region -g | grep "^e=" | cut -d'=' -f2 | awk '{printf "%i", $1}'`
+FULL_WEST=`g.region -g | grep "^w=" | cut -d'=' -f2 | awk '{printf "%i", $1}'`
 
 g.region n=$FULL_NORTH s=$FULL_SOUTH e=$FULL_EAST w=$FULL_WEST
 
@@ -157,6 +157,7 @@ for ((CURRENT_ROW=1; CURRENT_ROW <= $ROWS; CURRENT_ROW++)) ; do
 	
 	if [ "$GIS_FLAG_v" -eq 1 ] ; then
 		echo -e "\n\n=================================================="
+		echo -e "\nr.fragment:\n"
 	fi
 
 	for ((CURRENT_COL=1; CURRENT_COL<=$COLS; CURRENT_COL++)) ; do
@@ -166,7 +167,7 @@ for ((CURRENT_ROW=1; CURRENT_ROW <= $ROWS; CURRENT_ROW++)) ; do
 			echo "Column number: $CURRENT_COL"
 		fi
 		
-		NEWMAP=${INPUT}_${CURRENT_ROW}_${CURRENT_COL}
+		NEWMAP=${INPUT}_r${CURRENT_ROW}_c${CURRENT_COL}
 		
 		
 		r.mapcalc "$NEWMAP = ${INPUT}" --o

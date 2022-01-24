@@ -8,8 +8,10 @@
 # AUTHOR:   	 Eric Patton, Geological Survey of Canada (Atlantic)
 # 		         <Eric dot Patton at Canada dot ca>
 #
-# PURPOSE:       To apply a histogram-equalized colourbar to a Grass raster,
-#				 and recreate the coloured, shaded-relief raster from it.
+# PURPOSE:       To print a list of rasters whose region intersect that of the
+# current computational region; also formts this list into a csv string suitable
+# for use in r.patch.
+#				 
 #
 # COPYRIGHT:     (c) 2021 by Eric Patton
 #

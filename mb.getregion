@@ -6,8 +6,8 @@
 # 
 # AUTHOR(S):   	 Eric Patton 
 # 
-# PURPOSE: To query the current GRASS GIS region and print the bounds as a -R 
-#          flag for input into MB-System programs.                                     
+# PURPOSE: To query the current GRASS GIS region and print the lat-long bounds
+# as a -R flag for input into MB-System programs.                                     
 #
 # COPYRIGHT:     (C) 2013-2020  by Eric Patton (eric dot patton at canada dot ca)
 #

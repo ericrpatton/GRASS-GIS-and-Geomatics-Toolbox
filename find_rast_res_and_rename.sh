@@ -1,7 +1,7 @@
 #! /bin/bash
 #
 # find_rast_res_and_rename.sh: A simple script to query a raster for it's
-# east-west resolution, and append this and the resotlution units symbol
+# east-west resolution, and append this and the resolution units symbol
 # (metres) to the raster filename.
 #
 # Last modified: September 29, 2020

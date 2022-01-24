@@ -19,7 +19,7 @@
 #                for details.
 # 
 # Created:		 February 25, 2021
-# Last Modified: March 17, 2021
+# Last Modified: September 24, 2021
 #
 #############################################################################
 
@@ -55,15 +55,17 @@ RES=$2
 [ ! -f "${PROCESSED_DATALIST}" ] && mbdatalist -F-1 -I ${DATALIST} -Z
 
 mbprocess -C8 -F-1 -I ${DATALIST} 
-mbgrid -A2 -E${RES}/${RES}/meters! -F1 -I ${PROCESSED_DATALIST} -JUTM20N -R$(mb.getregion) -V -O "${OUTPUT_ROOT}"
+mbgrid -A2 -E${RES}/${RES}/meters! -F1 -I ${PROCESSED_DATALIST} -JEPSG:3395 -R$(mb.getregion) -V -O "${OUTPUT_ROOT}"
+
+[[ "$?" -eq 0 ]] && echo -e "\nProduced output grid ${OUTPUT_ROOT}.grd.\n"
 mbgrdviz -I ${OUTPUT_GRID}
 
 # For some bizarre reason, when mbgrid outputs a datalist of the files it
 # processed, it prepends a "P:" at the beginning of the line; we need to remove
 # this if we want to process this datalist and have grids reflect processed
 # edits.
-cat ${OUTPUT_ROOT}.mb-1 | sed 's/^P://' > tmp && mv tmp ${OUTPUT_ROOT}.mb-1
-cat ${OUTPUT_ROOT}.mb-1 | sed 's/^R://' > tmp && mv tmp ${OUTPUT_ROOT}.mb-1
+#cat ${OUTPUT_ROOT}.mb-1 | sed 's/^P://' > tmp && mv tmp ${OUTPUT_ROOT}.mb-1
+#cat ${OUTPUT_ROOT}.mb-1 | sed 's/^R://' > tmp && mv tmp ${OUTPUT_ROOT}.mb-1
 
 rm ${OUTPUT_ROOT}.grd.cmd
 rm ${OUTPUT_ROOT}.mb-1

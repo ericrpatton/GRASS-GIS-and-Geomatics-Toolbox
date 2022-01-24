@@ -56,6 +56,14 @@
 #% description: name of MB-System datalist to use for coordinates in current dir
 #%END
 
+#%option 
+#% key: resolution
+#% type: integer
+#% required: no 
+#% answer: 30
+#% description: Resolution of raster bounding box (used with -r flag)
+#%END
+
 if  [ -z "$GISBASE" ] ; then
     echo "You must be in GRASS GIS to run this program."
     exit 1
@@ -128,7 +136,8 @@ elif [ "$GIS_FLAG_i" -eq 1 ] ; then
 	EAST=$(echo $INFO_COORDS | cut -d'/' -f2)
 	SOUTH=$(echo $INFO_COORDS | cut -d'/' -f3)
 	NORTH=$(echo $INFO_COORDS | cut -d'/' -f4)
-	
+
+	echo -e "Projecting bounding coordinates to local Grass projection...\n"
 	proj $(g.proj -jf) <<EOF > bounding_coords.txt
 $WEST $SOUTH
 $WEST $NORTH
@@ -158,10 +167,12 @@ EOF
 
 fi
 
+# Format the coordinates the way v.in.ascii expects them
 awk 'BEGIN {print "B 5 1"} {print " "$1, $2} END {print "1 1"}' bounding_coords.txt > bounding_coords_clean.txt
 
 # Import to Grass vector format.
-v.in.ascii -n input=- output=${BOUNDINGBOX} format=standard sep=space --o --q < bounding_coords_clean.txt
+echo -e "Importing boundingbox coords to vector format...\n"
+v.in.ascii -n input=- output=${BOUNDINGBOX} format=standard sep=space --o < bounding_coords_clean.txt
 
 # Add centroids to new bounding box
 v.centroids input=${BOUNDINGBOX} output=TEMP --o --q
@@ -172,11 +183,30 @@ g.rename vect=TEMP,${BOUNDINGBOX} --q
 v.db.addtable map=${BOUNDINGBOX} columns="cat integer, Name varchar(20)" --q
 
 if [ "$GIS_FLAG_r" -eq 1 ] ; then
-	g.region vect=${BOUNDINGBOX} 
 	echo ""
-	v.to.rast input=${BOUNDINGBOX} output=${BOUNDINGBOX}_rast use=val val=1 mem=20000 --o 
-	echo -e "\nProduced a raster map ${BOUNDINGBOX}_rast from incoming vector map ${BOUNDINGBOX}.\n"
-	sleep 3
+	RES=$GIS_OPT_resolution
+	g.region vect=${BOUNDINGBOX} res=${RES}
+
+	# Use eval to capture Grass environment vaiables like the current MAPSET.
+	eval $(g.gisenv)
+	: ${MAPSET?}
+
+	# Check to see if the raster boundingbox already exists. 
+	eval $(g.findfile element=cell mapset=${MAPSET} file=${BOUNDINGBOX}_rast) 
+	: ${file?}
+
+	if [[ -z ${file} ]] ; then
+	
+		echo -e "\nRasterizing input vector bounding box...\n"
+		v.to.rast input=${BOUNDINGBOX} output=${BOUNDINGBOX}_rast use=val val=1 mem=20000 --o 
+	
+		[[ $? -eq 1 ]] && echo -e "\nError: $SCRIPT: v.to.rast conversion failed! Perhaps the region is too big?" && exit 1 || echo -e "\nProduced a raster map ${BOUNDINGBOX}_rast from incoming vector map ${BOUNDINGBOX}.\n"
+
+	else 
+		echo -e "\nRaster boundingbox ${BOUNDINGBOX_rast} already exists; skipping creation of this file."
+	fi
+	
+	
 fi
 
 # Cleanup

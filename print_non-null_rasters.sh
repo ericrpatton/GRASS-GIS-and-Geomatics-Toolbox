@@ -26,6 +26,7 @@ fi
 INPUT=$1 
 
 RANGE=$(list_range.sh ${MAP} | grep min | awk -F'=' '$2 !~ /NULL/ {print $2}')
-[ -n "$RANGE" ] && echo "${MAP}"
+echo "${RANGE}"
+
 
 exit 0

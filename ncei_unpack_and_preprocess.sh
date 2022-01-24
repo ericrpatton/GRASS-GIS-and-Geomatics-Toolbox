@@ -8,9 +8,8 @@
 #		 		 <eric dot patton at canada dot ca>
 # 
 # PURPOSE:       To extract a tar.gz package downloaded from NOAA's NCEI
-#				 bathymetry viewer website and run various MB-System
-#				 preprocessing scripts to prepare the dataset for
-#				 gridding/visualization.		 		 
+#				 bathymetry viewer website and unpack the gzipped swath files
+#				 contained therein.		 		 
 #
 # COPYRIGHT:    (c) 2020-2021 by Eric Patton
 #

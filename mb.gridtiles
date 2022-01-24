@@ -36,6 +36,11 @@
 #% description: Run mbprocess on datalist.mb-1 in parallel processing mode
 #%END
 
+#%flag
+#% key: s 
+#% description: Skip spline interpolation of null grid cells
+#%END
+
 #%option 
 #% key: datalist
 #% type: string
@@ -84,7 +89,7 @@ DATATYPE=${GIS_OPT_datatype}
 OUTPUT_ROOT="$(basename $DATALIST .mb-1)_${RES}m"
 
 SCRIPT=$(basename $0)
-PAUSE=2
+PAUSE=5
 
 # The maximum number of raster rows and columns allowed before the input
 # datalist region is split into equal-sized chunks. This is an arbitrary
@@ -109,6 +114,8 @@ unset LC_ALL
 export LC_NUMERIC=C
 
 # Setup clean exit for Ctrl-C or similar breaks.
+# TO-DO: Write a function to remove the raste and vector bounding boxes if thㄟs
+# script is interrupted.
 trap 'echo -e "\n\nUser break or similar caught! Exiting.\n" ; exit 1' 2 3 15
 
 # Create the output filenames we'll need later in the script.
@@ -117,23 +124,21 @@ VECT_BOUNDINGBOX="${VECTOR_OUTPUT_ROOT}_bounds"
 RASTERBOUNDS="${VECT_BOUNDINGBOX}_rast"
 
 if [ "$REGION" = "INFO" -o "$REGION" = "info" ] ; then 
-	# v.in.boundingbox calls mb.getinforegion to capture maximum gridding region
-	# of all files in the input datalist.  If there is a file in the current
-	# directory named mbinfo.txt with the data extent already calculated, it is
-	# used as the REGION. If not, mb.getinforegion is called to generate it. 
-	
+	# v.in.boundingbox uses mb.getinforegion to capture maximum gridding region
+	# of all files in the input datalist.  The -i flag checks to see if there is
+	# a file in the current directory named mbinfo.txt (or $DATALIST_mbinfo.txt)
+	# with the data extent already calculated; if so, it is used as the REGION.
+	# If there isn't, mb.getinforegion is called to generate it.  The -r flag
+	# generates a raster of the incoming vector boundingbox. The raster
+	# boundingbox is split by r.fragment into strips if the full region extent
+	# is bigger than $MAXSIZE.
 	echo -e "\nUsing mb.getinforegion to extract bounds of the datalist extent. Please standby...\n"
 
-	# The -i flag will use an mbinfo 'info.txt' file to extract the bounds, or,
-	# if one is not available, it will call mb.getinforegion to create one from
-	# the datalist. The -r flag generates a raster of the incoming vector
-	# boundingbox. The raster boundingbox is split by r.fragment into strips if
-	# the full region extent is bigger than $MAXSIZE.
 	v.in.boundingbox -ir boundingbox=${VECT_BOUNDINGBOX} datalist=${DATALIST} --o 
 	echo -e "\nFound the following region through mb.getinforegion:\n"
 	g.region rast=${RASTERBOUNDS} res=${RES} -ap
 	echo ""
-
+	sleep ${PAUSE}
 else
 	# Use the region provided by the user.
 
@@ -164,7 +169,7 @@ else
 	g.region w=${WESTING} e=${EASTING} s=${SOUTHING} n=${NORTHING} res=${RES} -ap
 	echo "" ; sleep $PAUSE
 	
-	# The -g flag below will use the current region set by g.region, and the -r
+	# The -g flag below will use the region set by g.region above, and the -r
 	# flag will create a raster from the vector bounding box. v.in.boundingbox
 	# will create a raster with the default name of $RASTERBOUNDS, that is,
 	# $VECT_BOUNDINGBOX_rast.
@@ -182,11 +187,12 @@ fi
 # -G is the acceptable depth percentage filter
 # -P is the acceptable speed range filter (km/hr)
 # -W is the geographic region filter
-# -Z is the 0 lat/long filter; probably redundant with -G
+# -X the value given zaps this number of beams from the port and starbaord edges
+# -Z is the 0 lat/long filter; probably redundant with -W
 if  [ ${GIS_FLAG_c} -eq 1 ] ; then
 	echo -e "\nThe -c flag has been passed; running mbclean..."
 	sleep ${PAUSE}
-	mbclean -F-1 -I ${DATALIST} -M1 -C75/2 -D0.01/0.2 -G0.98/1.02 -W-141/30/30/85 -P0.1/35 -Z
+	mbclean -F-1 -I ${DATALIST} -C65/2 -W-180/-30/30/89 -P0.5/30 -D0.01/0.2 -A4 -V
 fi
 
 if  [ ${GIS_FLAG_p} -eq 1 ] ; then
@@ -210,18 +216,19 @@ CELLS_INT=`echo "$CELLS" | awk '{printf "%.0f", $1}'`
 ROWS_INT=`echo "$ROWS" | awk '{printf "%.0f", $1}'`
 COLS_INT=`echo "$COLS" | awk '{printf "%.0f", $1}'`
 
-# Check to see if the number of cells in the region is greater than our threshold
-# value. If so, we need to partition the region into sections so that mbgrid
-# doesn't crash from a malloc error. (MB-System leaves the memory management to
-# you). If we need to segment the region, calculate how many strips needed.  We
-# will halve the width of the datalist region, then recheck whether the rows *
-# cols of that region still exceeds the MAXSIZE; this process is repeated until
-# the product of the rows and columns is below the MAXSIZE threshold; this will
-# be the value of our STRIP_WIDTH_CELLS.
+# Check to see if the number of cells in the region is greater than our
+# threshold value. If so, we need to partition the region into sections so
+# that mbgrid doesn't crash from a malloc error. (MB-System leaves the memory
+# management to you). If we need to segment the region, calculate how many
+# strips are needed. We will halve the width of the datalist region, then
+# recheck whether the rows * cols of that region still exceeds the MAXSIZE; this
+# process is repeated until the product of the rows and columns is below the
+# MAXSIZE threshold; this will be the value of our STRIP_WIDTH_CELLS.
 
-# Initialize a couple variables prior to beginning the WHILE loop..."
 
 if [ "$CELLS_INT" -gt "$MAXSIZE" ] ; then
+	
+	# Initialize a few variables prior to beginning the WHILE loop..."
 	COLS_WIDTH_CHECK=$COLS
 	NUMBER_OF_HALVINGS=0
 	NUMBER_OF_FRAGMENT_COLS=1
@@ -232,7 +239,7 @@ if [ "$CELLS_INT" -gt "$MAXSIZE" ] ; then
 		echo -e "\nThe processing region is $SIZE_CHECK cells, which exceeds limit of $MAXSIZE cells."
 		sleep $PAUSE
 
-		# We halve the region, splitting it in two
+		# We halve the region, and re-check to see if it is greater than $MAXSIZE 
 		COLS_WIDTH_CHECK=$(echo "scale=2 ; $COLS_WIDTH_CHECK / 2" | bc -l)
 		NUMBER_OF_HALVINGS=$(( $NUMBER_OF_HALVINGS + 1 ))
 		NUMBER_OF_FRAGMENT_COLS=$(echo "$NUMBER_OF_HALVINGS * 2" | bc -l)
@@ -242,20 +249,34 @@ if [ "$CELLS_INT" -gt "$MAXSIZE" ] ; then
 		echo "NUMBER_OF_HALVINGS is now $NUMBER_OF_HALVINGS."
 		echo "NUMBER_OF_FRAGMENT_COLS is now $NUMBER_OF_FRAGMENT_COLS."
 		echo "The SIZE_CHECK is now $SIZE_CHECK."
-		sleep 10
+		sleep $PAUSE
 
 	done
 	
 	echo "We will need to split the region of $DATALIST into $NUMBER_OF_FRAGMENT_COLS strips of size $SIZE_CHECK."
 	sleep $PAUSE
 
-	r.fragment input=${RASTERBOUNDS} rows=1 cols=${NUMBER_OF_FRAGMENT_COLS} -v 
-	
+	eval $(g.gisenv)
+	: ${MAPSET?}
+
+	# Check to see if the input datalist has already been split into fragments
+	# or not. If so, use those sections instead of regenerating them each time.
+	eval $(g.findfile element=cell mapset=$MAPSET file=${RASTERBOUNDS}_r1_c${NUMBER_OF_FRAGMENT_COLS})
+	: ${file?}
+
+	if [[ -z ${file} ]] ; then
+		r.fragment input=${RASTERBOUNDS} rows=1 cols=${NUMBER_OF_FRAGMENT_COLS} -v 
+		# NOTE: r.fragment createѕ output rasters with names of the type
+		# RASTERNAME_r1_c[1-X] (r stands for row, c for column).
+	fi
+
 	COUNTER=0 
 
-	for STRIP in $(g.list type=rast pat="${RASTERBOUNDS}_?_?") ; do
+	for STRIP in $(g.list type=rast pat="${RASTERBOUNDS}_r?_c*") ; do
 		g.region rast=${STRIP} res=${RES} -a
-
+		
+		# TO-DO: write the section below using an eval statement instead of
+		# calling g.region 4 times.
 		CURRENT_WEST_LL=$(g.region -bg rast=${STRIP} --q | grep ll_w | cut -d'=' -f2)
 		CURRENT_EAST_LL=$(g.region -bg rast=${STRIP} --q | grep ll_e | cut -d'=' -f2)
 		CURRENT_SOUTH_LL=$(g.region -bg rast=${STRIP} --q | grep ll_s | cut -d'=' -f2)
@@ -272,10 +293,15 @@ if [ "$CELLS_INT" -gt "$MAXSIZE" ] ; then
 		# (I used to hard-code a UTM projecton, which wasn't useful in LCC Grass
 		# projects). The mbgrid default output is a netCDF grid (.grd).
 
-		mbgrid -A${DATATYPE} -C2/1 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${CURRENT_WEST_LL}/${CURRENT_EAST_LL}/${CURRENT_SOUTH_LL}/${CURRENT_NORTH_LL} -O ${OUTPUT_ROOT}_${COUNTER} -V
+		if [ $GIS_FLAG_s -eq 1 ] ; then
+			mbgrid -A${DATATYPE} -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${CURRENT_WEST_LL}/${CURRENT_EAST_LL}/${CURRENT_SOUTH_LL}/${CURRENT_NORTH_LL} -O ${OUTPUT_ROOT}_${COUNTER} -V
+
+		else
+			mbgrid -A${DATATYPE} -C2/1 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${CURRENT_WEST_LL}/${CURRENT_EAST_LL}/${CURRENT_SOUTH_LL}/${CURRENT_NORTH_LL} -O ${OUTPUT_ROOT}_${COUNTER} -V
+		fi
 				
 		echo -e "\nReprojecting with gdalwarp...\n"
-		gdalwarp -s_srs "EPSG:4326" -t_srs "$(g.proj -jf)" -tr ${RES} ${RES} -wm 30000000000 -r bilinear -multi -wo NUM_THREADS=ALL_CPUS -of "GTiff" ${OUTPUT_ROOT}_${COUNTER}.grd ${OUTPUT_ROOT}_${COUNTER}.tif
+		gdalwarp -overwrite -s_srs "EPSG:4326" -t_srs "$(g.proj -jf)" -tr ${RES} ${RES} -wm 25000000000 -r bilinear -multi -wo NUM_THREADS=8 -of "GTiff" ${OUTPUT_ROOT}_${COUNTER}.grd ${OUTPUT_ROOT}_${COUNTER}.tif
 		echo "Importing section $COUNTER into Grass..."		
 		r.in.gdal input="${OUTPUT_ROOT}_${COUNTER}.tif" mem=30000 output="${OUTPUT_ROOT}_${COUNTER}_out" -o --o --v
 		sleep $PAUSE
@@ -300,16 +326,25 @@ else
 	MAX_NORTH_LL=$(g.region -bg rast=${RASTERBOUNDS} --q | grep ll_n | cut -d'=' -f2)
 	
 	#mbgrid -A${DATATYPE} -C2/1 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${MAX_WEST_LL}/${MAX_EAST_LL}/${MAX_SOUTH_LL}/${MAX_NORTH_LL} -O ${OUTPUT_ROOT} -V
-	mbgrid -A${DATATYPE} -C2/1 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${MAX_WEST_LL}/${MAX_EAST_LL}/${MAX_SOUTH_LL}/${MAX_NORTH_LL} -O ${OUTPUT_ROOT} -V
+
+
+	if [ $GIS_FLAG_s -eq 1 ] ; then
+	
+		mbgrid -A${DATATYPE} -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${MAX_WEST_LL}/${MAX_EAST_LL}/${MAX_SOUTH_LL}/${MAX_NORTH_LL} -O ${OUTPUT_ROOT} -V
+	else
+
+		mbgrid -A${DATATYPE} -C2/1 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${MAX_WEST_LL}/${MAX_EAST_LL}/${MAX_SOUTH_LL}/${MAX_NORTH_LL} -O ${OUTPUT_ROOT} -V
+	fi
 	
 	echo -e "Reprojecting with gdalwarp...\n"
-	gdalwarp -s_srs "EPSG:4326" -t_srs "$(g.proj -jf)" -of "GTiff" -tr ${RES} ${RES} -wm 30000000000 -r bilinear -multi -wo NUM_THREADS=ALL_CPUS ${OUTPUT_ROOT}.grd ${OUTPUT_ROOT}.tif
+	gdalwarp -overwrite -s_srs "EPSG:4326" -t_srs "$(g.proj -jf)" -of "GTiff" -tr ${RES} ${RES} -wm 25000000000 -r bilinear -multi -wo NUM_THREADS=8 ${OUTPUT_ROOT}.grd ${OUTPUT_ROOT}.tif
 	echo -e "\nImporting grid into Grass...\n"		
 	r.in.gdal input=${OUTPUT_ROOT}.tif mem=28000 output=${OUTPUT_ROOT} -o --o --v
 	
 fi
 
 r.colors -e map=${OUTPUT_ROOT} color=bof_unb --q
+r.optimize ${OUTPUT_ROOT}
 r.csr input=${OUTPUT_ROOT}
 
 # Cleanup

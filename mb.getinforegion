@@ -34,11 +34,14 @@ if [ "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; the
 	exit 1
 fi
 
+# Note: Do NOT use the processed (*p.mb-1) datalist as input to this script. 
 DATALIST=$1
 
 # Use whatever datalist was provided on the command line, but if none was given
-# default to the MB-System standard datalist.
-[[ -z ${DATALIST} ]] && DATALIST=datalist.mb-1 
+# default to the MB-System standard datalist. If we are using the standard
+# "datalist.mb-1", use the default "mbinfo.txt" as well. Otherwise, use an
+# mbinfo text file whose name contains the input datalist's from the command-line.
+[[ -z ${DATALIST} ]] && DATALIST=datalist.mb-1 && MBINFO="mbinfo.txt" || MBINFO="$(basename $DATALIST .mb-1)_mbinfo.txt"
 
 # Check if we have awk.
 if [ ! -x "`which awk`" ] ; then
@@ -54,20 +57,17 @@ export LC_NUMERIC=C
 trap 'echo -e "\n\nUser break or similar caught! Exiting.\n" 
 exit 1' 2 3 15
 
-if [ ! -f "mbinfo.txt" ] ; then
+if [ ! -f ${MBINFO} ] ; then
 	
-	# As noted above, the -R string will keep mbinfo from reading in data
-	# outside of this region. It very broadly corresponds to the marine waters
-	# of Eastern Canada.
-	mbinfo -F-1 -I ${DATALIST} -G -R-75/-30/35/89 -V > mbinfo.txt 2>/dev/null
+	# Only read in positions that are reasonable for North American geographic
+	# bounds. 
+	mbinfo -F-1 -I ${DATALIST} -G -R-180/-25/30/89.5 -V > ${MBINFO}
 fi
 
-INFOFILE="mbinfo.txt"
-
-MAX_WEST=`cat ${INFOFILE} | grep "Minimum Longitude" | awk '{print $3}'`
-MAX_EAST=`cat ${INFOFILE} | grep "Maximum Longitude" | awk '{print $6}'`
-MAX_SOUTH=`cat ${INFOFILE} | grep "Minimum Latitude" | awk '{print $3}'`
-MAX_NORTH=`cat ${INFOFILE} | grep "Maximum Latitude" | awk '{print $6}'`
+MAX_WEST=`cat ${MBINFO} | grep "Minimum Longitude" | awk '{print $3}'`
+MAX_EAST=`cat ${MBINFO} | grep "Maximum Longitude" | awk '{print $6}'`
+MAX_SOUTH=`cat ${MBINFO} | grep "Minimum Latitude" | awk '{print $3}'`
+MAX_NORTH=`cat ${MBINFO} | grep "Maximum Latitude" | awk '{print $6}'`
 
 echo "${MAX_WEST}/${MAX_EAST}/${MAX_SOUTH}/${MAX_NORTH}"
 

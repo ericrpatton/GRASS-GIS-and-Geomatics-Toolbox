@@ -1,16 +1,16 @@
-############################################################################
 #! /bin/bash
 #
 ############################################################################
 #
-# MODULE:        mb.datalist_this_region.sh for Grass 7.x
+# MODULE:        r.rst for Grass 7.x
 # 
 # AUTHOR:   	 Eric Patton, Geological Survey of Canada (Atlantic)
 # 		         <Eric dot Patton at Canada dot ca>
 #
-# PURPOSE:       To create a datalist from the MB-System files in the current
-# directory using the current Grass computational region extents.
-#				 
+# PURPOSE:       A shell wrapper for quickly creating a regualrized spline with
+#				 tension (rst) interpolated surafce from an input raster using
+#				 simple default parameters. Uses the native resolution of the
+#				 input raster.
 #
 # COPYRIGHT:     (c) 2021 by Eric Patton
 #
@@ -18,8 +18,8 @@
 #                License (>=v3). Read the file COPYING that comes with GRASS
 #                for details.
 # 
-# Created:		 March 18, 2021
-# Last Modified: September 24, 2021
+# Created:		 November 3, 2021
+# Last Modified: November 3, 2021
 #
 #############################################################################
 
@@ -29,6 +29,11 @@ if  [ -z "$GISBASE" ] ; then
 fi
 
 SCRIPT=$(basename $0)
+
+if [ "$#" -ne 1 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
+	echo -e "\nusage: $SCRIPT r.rst rastername \n"
+	exit 1
+fi
 
 # What to do in case of user break:
 exitprocedure()
@@ -40,19 +45,12 @@ exitprocedure()
 # Setup clean exit for Ctrl-C or similar breaks.
 trap 'exitprocedure' 2 3 15
 
-if [ "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
-	echo -e "\nusage: $SCRIPT [datalist_name] \n"
-	exit 1
-fi
+INPUT=$1
+TENSION=$2
+RES=$(getres.sh ${INPUT})
 
-# Use the MB-System standard datalist.mb-1 if no datalist was given on the
-# command line.
-DATALIST=$1
-OUTPUT="cleaning_$(date '+%b%d_%Y').mb-1"
+[[ -z ${TENSION} ]] && TENSION=40
 
-[ -z ${DATALIST} ] && DATALIST="datalist.mb-1"
-
-mbdatalist -F-1 -I ${DATALIST} -R$(mb.getregion) | tee ${OUTPUT}
-[[ "$?" -eq 0 ]] && echo -e "\nProduced new datalist ${OUTPUT}.\n"
+r.resamp.rst in=${INPUT} elevation=${INPUT}_ten${TENSION}.rst tension=${TENSION} ewres=${RES} nsres=${RES} --o --v 
 
 exit 0

@@ -45,12 +45,20 @@ exitprocedure()
 # Setup clean exit for Ctrl-C or similar breaks (signal list: trap -l):
 trap "exitprocedure" 2 3 15
 
+if [ "$#" -ne 1 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
+	echo -e "\nusage: $SCRIPT afile \n"
+	exit 1
+fi
+
+
 INPUT=$1
 SUFFIX=".$(echo ${INPUT} | cut -d. -f2)"
 BASENAME=$(basename ${INPUT} ${SUFFIX})
 NUMBER_OF_POINTS=$(wc -l $INPUT | awk '{print $1}')
 echo "Number_of_Points is $NUMBER_OF_POINTS"
 
+# TO-DO: re-write the awk statement below to use printf instead of print, to
+# enable the preservation of timestamps with padded zeros.
 # Import Points
 awk 'NF != 3 {next} ; {print $2, $3, $1}' ${INPUT} | proj -E -r `g.proj -jf` +datum=WGS84 | awk '{print $5, $3, $4, $1, $2}' | v.in.ascii -i input=- format=point output=${BASENAME}_points sep=space columns='Timestamp int, Easting double precision, Northing double precision, Latitude double precision, Longitude double precision' x=2 y=3 --o --v 
 

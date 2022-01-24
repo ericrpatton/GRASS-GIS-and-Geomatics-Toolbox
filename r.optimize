@@ -41,7 +41,7 @@ INPUT=$1
 RES=$(list_res.sh ${INPUT} | grep "ewres" | cut -d'=' -f2)
 
 INPUT_SIZE=$(g.region rast=${INPUT} res=${RES} -p | grep cells | awk '{print $2}')
-echo -e "\nWorking on map ${INPUT}..."
+echo -e "\nOptimizing the region of map ${INPUT}..."
 echo "=========================================================================="
 echo -e "\nInput region:\n"
 g.region rast=${INPUT} res=${RES} -p
