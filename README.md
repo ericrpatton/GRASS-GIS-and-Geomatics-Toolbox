@@ -12,4 +12,4 @@ I may not have 100% consistent in the naming convention my scripts, because up u
 
 I am placing these on Github with the hope that they might be useful for anyone else in a similar role as mine. Undoubtedly, there are bugs and improvements that can be made; feel free to clone and fork, suggest improvements, etc. I don't consider myself a "programmer" by any means, as will be obvious to anyone who looks at this work, but just regular GIS user trying to learn as much as I can to work more efficiently at my job. 
 
-All code is placed under the GPL Version 3 license.
+Where not already designated in each script, code is placed under the GPL Version 3 license.
