@@ -41,7 +41,7 @@ exitprocedure()
 trap 'exitprocedure' 2 3 15
 
 if [ "$#" -gt 2 -o "$#" -eq 0 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
-	echo -e "\nusage: $SCRIPT datalist_name [ resolution ] \n"
+	echo -e "\nusage: $SCRIPT raw_datalist_name [ resolution ] \n"
 	exit 1
 fi
 
@@ -51,8 +51,8 @@ OUTPUT_ROOT="Processed_$(basename ${PROCESSED_DATALIST} .mb-1)"
 OUTPUT_GRID="${OUTPUT_ROOT}.grd"
 RES=$2
 
-[ -z ${RES} ] && RES=100
-[ ! -f "${PROCESSED_DATALIST}" ] && mbdatalist -F-1 -I ${DATALIST} -Z
+[[ -z ${RES} ]] && RES=100
+[[ ! -f "${PROCESSED_DATALIST}" ]] && mbdatalist -F-1 -I ${DATALIST} -Z
 
 mbprocess -C8 -F-1 -I ${DATALIST} 
 mbgrid -A2 -E${RES}/${RES}/meters! -F1 -I ${PROCESSED_DATALIST} -JEPSG:3395 -R$(mb.getregion) -V -O "${OUTPUT_ROOT}"
