@@ -1,5 +1,4 @@
-# GIS
-Various GIS and Geomatics scripts/tools
+# GRASS-GIS-and-Geomatics-Toolbox
 
 This is a collection of GIS tools and bash scripts I've been working on for the past 17 years at my job as a Marine Geoscience Technologist at Natural Resources Canada. Not all of them are my scripts - some are scripts and tools I've collected from other GIS users that have proved useful to me.
 
