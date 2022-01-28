@@ -1,0 +1,102 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>r.surf.nnbathy</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<!-- <link rel="stylesheet" href="grassdocs.css" type="text/css"> -->
+</head>
+<body bgcolor="white">
+
+<!-- <img src="grass.smlogo.gif" alt="GRASS logo"><hr align=center size=6 noshade> -->
+
+<h2>NAME</h2>
+<em><b>r.surf.nnbathy</b></em> - Interpolate surface from rasterized input using the <a href="http://www.marine.csiro.au/~sakov/">nn</a>, a natural neighbor intepolation library.
+<h2>SYNOPSIS</h2>
+<b>r.surf.nnbathy</b><br>
+<b>r.surf.nnbathy help</b><br>
+<b>r.surf.nnbathy</b> <b>input</b>=<em>name</em> <b>output</b>=<em>name</em> <b>alg</b>=<em>name</em>
+
+<h3>Parameters:</h3>
+<DL>
+<DT><b>input</b>=<em>name</em></DT>
+<DD>Input raster name</DD>
+
+<DT><b>output</b>=<em>name</em></DT>
+<DD>Output raster name</DD>
+
+<DT><b>alg</b>=<em>name</em></DT>
+<DD>Interpolation algorithm for nnbathy to use</DD>
+<DD>options: <em>l,nn,ns</em></DD>
+<DD>default: <em>nn</em></DD>
+
+
+</DL>
+<h2>DESCRIPTION</h2>
+
+<em>r.surf.nnbathy</em> is a Bash and Awk script. It is an interface between the external <em>nnbathy</em> utility and <em>GRASS</em>. <em>nnbathy</em> is a surface interpolation program, which uses the <em>nn</em> - a natural neighbor interpolation library. <em>nnbathy</em> and <em>nn</em> were written by
+
+<a href="http://www.marine.csiro.au/~sakov/">Pavel Sakov</a>. <em>nn</em> uses <em>triangle</em> software by
+<a href="http://www.cs.berkeley.edu/~jrs/">Jonathan Richard Shewchuk</a> for performing the underlaying Delaunay triangulation.
+
+<p>
+The <em>output</em> raster contains a continous surface interpolated from the <em>input</em> raster.
+<p>
+There is no limitation in regard to the shape and distribution of the input cells. The input could be e.g. open or closed elevation contour lines, elevation points, areas and any combination of these. Natural neighbor algorithm exactly follows the input data and is able to produce a good result from very clustered, heterogenous input. It will preserve any rapid value gradient present in the input. It doesn't produce artificial bulges or hollows between the distant input data, only a straight, continous surface. A disadvantage is that it might produce bogus flat areas in case of kidney-like shaped contour lines in input. Also note the surface it creates goes exactly through all the input points, and they are connected linearly, so that the output surface is rough. For a smoother surface consider using eg. RST interpolation (<em>v.surf.rst</em> in GRASS).
+<p>
+<em>alg</em> options <em>l, nn, ns</em> stand for, respectively, linear, Sibson and non-Sibsonian interpolation.
+<p>
+According to <em>nn</em> library documentation, the <em>l</em> is linear triangulation, <em>nn</em> is Dave Watson's algorithm for Sibson interpolation, and <em>ns</em> is Belikov and Semenov's algorithm for non-Sibsonian interpolation.
+
+<P>
+<em>nnbathy</em>, if built with '-DNN_SERIAL' switch, is able to output a grid of virtually any size. It interpolates and writes one output point at a time only. This eliminates necessity to hold the whole output array in memory. However, all the input cells are held in the memory.
+
+<P>
+In order to install <em>nnbathy</em> with serial input processing enabled, do the following:
+
+<ul>
+1. Download nn.tar.gz from <a href="http://www.marine.csiro.au/~sakov/">http://www.marine.csiro.au/~sakov/</a><br>
+2. tar xzvf nn.tar.gz<br>
+3. cd nn<br>
+4. ./configure<br>
+5. make<br>
+6. gcc -o nnbathy nnbathy.c -g -O2 -Wall -pedantic -I. -DNN_SERIAL libnn.a -lm<br>
+7. chmod u+x ./nnbathy
+</ul>
+
+<P>
+Now copy the <em>nnbathy</em> executable to some directory in your PATH.
+<p>
+
+<H2>NOTES</H2>
+<ul>
+1. Requires <em>GRASS</em> 6.x and <em>nnbathy</em> 1.75 or greater.<br>
+2. The output extent and resolution will match the current region settings.<br>
+3. The output non-NULL area will be limited to the convex hull encompassing all the non-NULL input cells.<br>
+4. The output is double floating point raster.<br>
+5. Natural neighbor is a an <em>exact</em> interpolation algorithm, so all non-NULL input cells have their value exactly preserved in the output.<br>
+6. There is circa 0.2 KB memory overhead per each <em>input</em> point. However, the <em>output</em> grid can be of any size, if <em>nnbathy</em> was built with -DNN_SERIAL switch.<br>
+7. <em>r.surf.nnbathy</em> creates 3 temp files - plain ASCII x,y,z lists of the input and output, and the output converted into GRASS ASCII format. Then it makes a GRASS raster from the latter - and only then it removes the 3 temp files, when the script terminates. Thus, in the runtime you need several times more space than the resulting GRASS raster actually occupies. Note it is then easy to run out of the disk space interpolating into a grid of several mln points, using mlns of points for input.<br>
+
+<P>
+I'd like to thank <a href="http://www.marine.csiro.au/~sakov/">Pavel Sakov</a> for all his support in regard to <em>nn</em> and <em>nnbathy</em> usage, and especially for implementing serial input processing.
+
+</ul>
+<h2>SEE ALSO</h2>
+
+<B>v.to.rast</B><br>
+<a href="http://www.marine.csiro.au/~sakov/">Pavel Sakov</a>
+
+<h2>AUTHOR</h2>
+
+Maciej Sieczka, Wroclaw, Poland, 2006-2008<br>
+sieczka at biol.uni.wroc.pl<br>
+<P>
+Wroclaw University, Intitute of Plant Biology<br>
+Developed within the course and for the purpose of the CAVES project, funded
+under EU 6FP NEST programme.
+
+<!-- <p><i>Last changed: $Date: 2006/02/01 09:18:56 $</i> -->
+<HR>
+<!-- <P><a href="index.html">Main index</a> - <a href="vector.html">vector index</a> - <a href="full_index.html">Full index</a> -->
+</body>
+</html>

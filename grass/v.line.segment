@@ -1,0 +1,60 @@
+#! /bin/sh
+
+# This script will segment an input line vector into an arbitrary number of points
+
+echo "Enter name of vector to query: "
+read VECTOR
+echo "Enter cat number to query: "
+read CAT
+echo "Enter layer number to output results: "
+read LAYER
+echo "Enter the number of points to create: "
+read NUM_POINTS
+
+echo ""
+
+# If you want 20 points output, you only need 19 segments ;)
+SEG_NUM=$(($NUM_POINTS - 2))
+
+
+# Assumes that the name of the length column is 'Length'; modify this script otherwise.
+TABLE=`v.db.connect -g map=$VECTOR | cut -f2 -d' '`
+TOTAL_LENGTH=`db.select -c table=$TABLE sql="select Length from $TABLE where cat=$CAT"`
+
+# The length of one segment, that is, the distance from one interpolated node to the next.
+DMAX=`echo "scale=2; $TOTAL_LENGTH/$SEG_NUM" | bc -l`
+
+OUTPUT="$VECTOR"_segmented
+echo -e "\nOutput map set to $OUTPUT."
+
+
+# Capture environment variables.
+eval `g.gisenv`
+: ${GISDBASE?} ${GISBASE?} ${LOCATION_NAME?} ${MAPSET?}
+
+
+# If our output filename already exists, remove it.
+eval `g.findfile element=vector mapset=$MAPSET file=$OUTPUT`
+	
+	
+if [ -n "$file" ] ; then
+	g.remove vect="$OUTPUT"
+fi	
+
+# Check filename of vector to make sure no period exists in input filename.
+NAME_CHECK=`echo "$VECTOR" | grep "\."`
+
+if [ -n "$NAME_CHECK" ] ; then
+	echo "Filename check found a '.' in the name; renaming $VECTOR..."
+	NEW_VECT=`echo "$VECTOR" | tr "." "_"`
+	g.rename vect=${VECTOR},${NEW_VECT}
+	v.to.points input=${NEW_VECT} output=${OUTPUT} llayer=${LAYER} dmax=${DMAX}
+else
+	echo -e "\nInput filename looks OK."
+	v.to.points input=${VECTOR} output=${OUTPUT} llayer=${LAYER} dmax=${DMAX}		
+fi		
+
+
+
+exit 0
+

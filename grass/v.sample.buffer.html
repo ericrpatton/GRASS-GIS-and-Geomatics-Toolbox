@@ -1,0 +1,66 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+
+<title>v.sample.buffer</title><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"></head>
+
+<body bgcolor="white">
+<h2>NAME</h2>
+<em><b>v.sample.buffer</b></em>  - Samples specified raster layers within a user specified distance from objects in a specified vector layer.
+<h2>SYNOPSIS</h2>
+<b>v.sample.buffer</b><br>
+<b>v.sample.buffer help</b><br>
+<b>v.sample.buffer</b> <b>regionname</b>=<em>string</em> <b>vectfile</b>=<em>string</em> <b>buffersize</b>=<em>float</em> <b>rasters</b>=<em>string[,string,...]</em>  <b>stats</b>=<em>string[,string,...]</em>  
+
+<h3>Parameters:</h3>
+<dl>
+<dt><b>regionname</b>=<em>string</em>
+</dt><dd>Named region for geographic extent of region to survey</dd>
+
+<dt><b>vectfile</b>=<em>string</em>
+</dt><dd>Vector file to be used to survey region</dd>
+
+<dt><b>buffersize</b>=<em>float</em>
+</dt><dd>Size of buffer in map units around each object to survey</dd>
+<dd>Default: <em>50.0</em></dd>
+
+<dt><b>rasters</b>=<em>string</em>
+</dt><dd>Rasters to be surveyed</dd>
+
+<dt><b>stats</b>=<em>string</em>
+</dt><dd>Statistics to be calculated from buffer area values</dd>
+<dd>Options: mean, minimum, maximum, range, variance, standard_deviation, diversity, mode, mode_percent </dd>
+
+</dl>
+<h2>DESCRIPTION</h2>
+
+<em>v.sample.buffer</em> samples a GRASS raster or rasters in buffered areas surrounding objects in a vector layer. A series of summary statistics can be calculated for each location and these are added to the attribute table of the vector layer.
+
+<p>
+
+</p><h2>NOTES</h2>
+
+<p>
+
+This program was designed and tested for sampling areas around survey points. There is no reason however that it should not function for sampling and summarizing buffer zones around linear features or areas.
+
+</p><h2>SEE ALSO</h2>
+
+<em><a href="http://grass.itc.it/grass60/manuals/html60_user/v.sample.html">v.sample</a></em><br>
+<em><a href="http://grass.itc.it/grass60/manuals/html60_user/v.buffer.html">v.buffer</a></em><br>
+<em><a href="http://grass.itc.it/grass60/manuals/html60_user/g.region.html">g.region</a></em><br>
+
+
+<h2>BUGS</h2>
+Please send all bug fixes and comments to the author
+or the grass development team. <br>
+<a href="http://grass.itc.it/"><tt>http://grass.itc.it</tt></a>
+
+<h2>AUTHOR</h2>
+
+Trevor Wiens
+<a href="mailto:twiens@users.sourceforge.net">&lt;twiens@users.sourceforge.net&gt;</a>,
+
+</p><p><i>Last changed: $Date: 2005/06/28 01:15:00 $</i>
+</p><hr>
+<p><a href="http://grass.itc.it/grass60/manuals/html60_user/index.html">Main index</a> - <a href="http://grass.itc.it/grass60/manuals/html60_user/vector.html">vector index</a> - <a href="http://grass.itc.it/grass60/manuals/html60_user/full_index.html">Full index</a>
+</p></body></html>

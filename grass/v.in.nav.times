@@ -1,0 +1,114 @@
+#! /bin/sh
+#
+# MODULE:    v.in.nav.times
+#
+# AUTHOR:    Eric Patton, Geological Survey of Canada (Atlantic)
+#	     <epatton at nrcan dot gc dot ca>	 
+#
+# PURPOSE:   Prompts the user for a timestamp, and greps the corresponding latitude and longitude
+#	     values from a user-supplied navigtion file (i.e., Timestamp, Lat, Long), 
+#	     pipes the coordinates through proj to convert to UTM coordinates, 
+#	     then imports into Grass vector format. Assumes output is in UTM20 WGS84.	
+#
+# COPYRIGHT: (C) 2007 by Eric Patton 
+#	
+# Last Modified: September 11, 2007
+#
+#########################################################################################
+
+
+#%Module
+#% description: Extracts lat/long coordinates from a navigation file given a user-supplied timestamp, and converts to UTM and imports to Grass vector format. 
+#%END
+
+#%flag
+#% key: u
+#% description: Print UTM coordinates only 
+#%END
+
+#%flag
+#% key: g
+#% description: Print geographic coordinates only
+#%END
+
+#%option
+#% key: navfile
+#% type: string
+#% description: Name of a navigation file in the current directory
+#% gisprompt: old_file, file, input
+#% required : yes
+#%END
+
+#%option
+#% key: timestamp
+#% type: integer
+#% description: Timestamp to scan for from input navigation file
+#% required: yes
+#%END
+
+#%option
+#% key: output
+#% type: string
+#% gisprompt: new,vector,vector
+#% description: Name of output vector
+#% required: no
+#%END
+
+SCRIPT=`basename $0`
+
+if  [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program.">&2
+    exit 1
+fi
+
+if [ "$1" != "@ARGS_PARSED@" ] ; then
+     exec g.parser "$0" "$@"
+fi
+
+# Check if we have awk.
+if [ ! -x "`which awk`" ] ; then
+    echo "$SCRIPT: awk required, please install awk or gawk first" 2>&1
+    exit 1
+fi
+
+# Setting environment, so that awk works properly in all languages.
+unset LC_ALL
+export LC_NUMERIC=C
+
+# Capture Ctrl-C and similar breaks
+trap 'echo -e "\n\nUser break! Exiting.\n" ; exit 1' 2 3 15
+
+# Rename input parameters.
+NAVFILE=$GIS_OPT_navfile
+TIMESTAMP=$GIS_OPT_timestamp
+OUTPUT=$GIS_OPT_output
+
+if [ -z "$OUTPUT" ] ; then
+	OUTPUT="test"
+fi
+
+cat $NAVFILE | grep $TIMESTAMP | awk '{print $3, $2}' | proj +proj=utm +ellps=WGS84 +zone=20 | awk '{print $1, $2}' > TMP_utms.txt
+
+# Procedure for -u flag
+if [ $GIS_FLAG_u -eq 1 ] ; then
+
+	cat TMP_utms.txt	
+	exit 0
+fi
+
+# Procedure for -g flag
+# NOTE: The -g only prints out whatever is in the navigation file in the first place, assuming Lat/Long coordinates
+# are there! No sanity-checking is performed on the values in this file.
+
+if [ $GIS_FLAG_g -eq 1 ] ; then
+	
+	cat $NAVFILE | grep $TIMESTAMP | awk '{print $2, $3}'
+	exit 0
+fi
+
+v.in.ascii format=point fs=space x=1 y=2 cat=0 output=$OUTPUT --o < TMP_utms.txt
+
+# Cleanup
+rm -f TMP_utms.txt
+
+exit 0

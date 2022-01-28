@@ -1,0 +1,114 @@
+#! /bin/bash
+#
+# This script takes a Knudsen KEA file as input. It processes the timestamps
+# and feeds them to the Bash 'date' command to get the Julian day. These are
+# read into an awk array and written to the output file along with the
+# latitude and longitude. Only one unique timestamp is preserved per second,
+# although if the input file only has a timestamp every few seconds (i.e., in
+# very deep water), then you aren't going to get more that what is in the
+# original KEA file. The formatted navigation is then imported into GRASS GIS
+# using v.in.afile.
+#
+# NOTE: There is no standard format for the text columns that are included in
+# a KEA file; the columns of data are user-selected in the Knudsen client
+# software.  So you will have to edit the awk command below to grab the
+# columns you need.
+#
+# 
+# Created by: Eric Patton, GSC-A
+#
+# Date Created: July 27, 2020
+# Last Modified: August 29, 2020
+# 
+###################################################################################
+
+if  [ -z $GISBASE ] ; then
+ echo "You must be in GRASS GIS to run this program."
+ exit 1
+fi
+
+SCRIPT=$(basename $0)
+
+# Check if we have awk and proj4.
+
+if [ ! -x "`which awk`" ] ; then
+	echo "$SCRIPT: awk required, please install awk or gawk first." 2>&1
+	exit 1
+fi
+
+if [ ! -x "`which proj`" ] ; then
+	echo "$SCRIPT: proj required, please install proj first." 2>&1
+	exit 1
+fi
+
+# What to do in case of user break:
+exitprocedure()
+{
+	echo -e "\n\nUser break or similar caught; Exiting.\n"
+	exit 1
+}
+
+# Setup clean exit for Ctrl-C or similar breaks (signal list: trap -l):
+trap "exitprocedure" 2 3 15
+
+INPUT=$1
+AFILE="Knudsen_KEA_$(basename $INPUT .kea).afile"
+
+echo -e "\nFiltering out null values from KEA file..."
+
+awk -F, '{
+	# If the Knudsen Client output null lat/long values in the .kea file, the following
+	# check will filter them out, and only output lines with non-zero coordinates.
+
+	if ($16 ~ /X000000000/ || $17 ~ /Y000000000/) {	next }
+	
+	else {print $0}
+	
+}' ${INPUT} > filtered_input.txt
+
+echo -e "\nFormatting timestamps...\n"
+awk -F, '{print substr($1,5,4)"-"substr($1,3,2)"-"substr($1,1,2)}' filtered_input.txt > formatted_times.txt
+
+echo -e "Converting timestamps to julian dates...\n"
+date -f formatted_times.txt '+%j' > julian_days.txt
+
+echo -e "Reading dates into arrays and writing KEA file...\n"
+
+awk -F, 'BEGIN { j=0 ; i=0
+
+# Read the values from julian_days.txt into an array
+
+while((getline < "julian_days.txt" ) > 0) {
+	julian_days[j]=$1
+	j++
+	}
+close ("julian_days.txt") 
+}
+
+	{
+		TIME[i]=$2
+		LATITUDE[i]=$16
+		LONGITUDE[i]=$17
+		i++
+		
+	}
+
+END { for ( k=0 ; k<=i ; k++) {
+		printf "%d %2.6f %3.6f\n", julian_days[k]TIME[k], LATITUDE[k], "-"LONGITUDE[k]
+	}
+delete julian_days 
+delete TIME 
+delete LATITUDE 
+delete LONGITUDE
+
+}' filtered_input.txt | uniq -w9 | sed 's/N//' | sed 's/W//' | awk '$2 != 0 && $3 != 0 {print $1, $2, $3}' > ${AFILE}
+
+rm julian_days.txt
+rm formatted_times.txt
+rm filtered_input.txt
+
+echo -e "Importing afile into GRASS GIS...\n"
+
+v.in.afile ${AFILE}
+
+exit 0

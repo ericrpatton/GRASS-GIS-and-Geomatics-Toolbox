@@ -1,0 +1,7 @@
+#! /bin/bash
+
+NUMBER=$1
+
+ls -1 | shuf -n${NUMBER} 
+
+exit 0

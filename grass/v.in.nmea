@@ -1,0 +1,24 @@
+#! /bin/bash
+
+if  [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program."
+    exit 1
+fi
+
+SCRIPT=$(basename $0)
+
+# Setup clean exit for Ctrl-C or similar breaks.
+trap 'exitprocedure' 2 3 15
+
+if [ "$#" -ne 1 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
+	echo -e "\nusage: $SCRIPT nmeafile\n"
+	exit 1
+fi
+
+
+INPUT=$1
+SUFFIX=`echo $1 | cut -d. -f2`
+
+proj -E -r `g.proj -jf` ${INPUT} | awk '{print $1, $2, $3, $4, $5}' | v.in.ascii in=- sep=space  output=`basename $INPUT .$SUFFIX` columns='Lat_DD double, Lon_DD double, Easting double, Northing double, Timestamp integer' x=3 y=4 cat=0 --o --v
+
+exit 0

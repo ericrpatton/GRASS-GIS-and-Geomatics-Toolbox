@@ -1,0 +1,106 @@
+#! /bin/sh
+# 
+# This script takes a GSC-A Expedition Database navigation format text file as 	
+# input and imports it into GRASS GIS vector format. The script will check the
+# current GRASS location to see if the projection is lat-long or not, and take
+# that into account when deciding if projection of coordinates is required.
+# 
+# Created by: Eric Patton, GSC-A
+# Last Modified: April 16, 2015
+#
+###################################################################################
+
+#%Module
+#% description: Imports GSC-A Expedition Database navigation into GRASS GIS vector format. 
+#%END
+
+#%option
+#% key: input
+#% type: string
+#% gisprompt: old_file,file,input
+#% description: Name of input ED navigation file or a wildcard search pattern
+#% required : yes 
+#%END
+
+if  [ -z $GISBASE ] ; then
+ echo "You must be in GRASS GIS to run this program." 
+ exit 1
+fi
+
+if [ "$1" != "@ARGS_PARSED@" ] ; then
+     exec g.parser "$0" "$@"
+fi
+
+# Setup clean exit for Ctrl-C or similar breaks.
+trap 'echo -e "\n\nUser break or similar caught; Exiting.\n" ; exit 1' 2 3 15
+
+SCRIPT=`basename $0`
+
+# Rename parameters.
+PATTERN=$GIS_OPT_input
+ZONE=$GIS_OPT_zone
+
+# Check if we have awk and proj4.
+
+if [ ! -x "`which awk`" ] ; then
+	echo "$SCRIPT: awk required, please install awk or gawk first." 1>&2
+	exit 1
+fi
+
+if [ ! -x "`which proj`" ] ; then
+	echo "$SCRIPT: proj4 required, please install proj first." 1>&2
+	exit 1
+fi
+
+# Setting environment, so that awk works properly in all languages.
+unset LC_ALL
+export LC_NUMERIC=C
+
+# Not sure if there's a better way to check if any input files 
+# match the search pattern, but here goes:
+MATCHES=`ls ${PATTERN} | awk '{print $0}' | wc -l`
+
+# Abort if no matches are found.
+if [ "$MATCHES" -eq 0 ] ; then
+ 	echo "$SCRIPT: No input files matched the search pattern!" 
+ 	exit 1
+fi	
+
+for FILE in `ls -1 ${PATTERN}` ; do
+
+	# Since v.in.ascii will only accept SQL-compliant filenames, substitute periods in the input filename 
+	# for underscores just so the file gets imported.
+
+	echo "Input file is $FILE."
+	OUTPUT=`echo $FILE | cut -d'.' -f1`
+	echo "Output file will be named $OUTPUT."
+	sleep 1	
+
+	# CONVERT TO GRASS FORMAT
+	# This section will strip out ED-generated header data that we don't need;
+	# make sure you are working with the original copy downloaded from ED, and
+	# not an edited version!
+	# 
+	# If we are importing into a Lat-Long project, no reprojection is
+	# required, so import the file as-is. If we are working in a projected
+	# location, then we need to filter the file through proj and awk to get
+	# cleanly formatted easting and northings in the current projection.
+
+	LATLONG_CHECK=`g.proj -jf | awk '{print $1}' | cut -d'=' -f2`
+	#echo "\nLATLONG_CHECK is $LATLONG_CHECK."
+	
+	if [ "$LATLONG_CHECK" = "longlat" ] ; then
+		echo -e "\nGeographic location (lat-long) detected; bypassing coordinate reprojection.\n"
+		sleep 1
+
+		awk -F, 'NR > 5 && NF == 7 {print $7, $6, $1, $2, $3, $4, $5}'  ${FILE} | v.in.ascii output=${OUTPUT} cat=0 columns='Longitude double, Latitude double, Exped_Code int, Segment_Number int, Year int, Julian_Day int, HHMMSS varchar(10)' fs=space --o --v
+	else
+		echo -e "\nProjected location detected; projecting lat-long coordinates...\n"
+		sleep 1
+
+		awk -F, 'NR > 5 && NF == 7 {print $7, $6, $1, $2, $3, $4, $5}' ${FILE} | proj `g.proj -jf` | awk '{print $1, $2, $3, $4, $5, $6, $7}' | v.in.ascii output=$OUTPUT cat=0 columns='Easting double, Northing double, Exped_Code int, Segment_Number int, Year int, Julian_Day int, HHMMSS varchar(10)' fs=space --o --v
+	fi
+
+done
+
+exit 0

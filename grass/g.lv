@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Capture environment variables.
+eval `g.gisenv`
+: ${MAPSET?}
+
+g.list type=vect mapset=${MAPSET}
+
+exit 0
