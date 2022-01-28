@@ -1,0 +1,278 @@
+#! /bin/sh
+#
+############################################################################
+#
+# MODULE:        r.fragment for Grass 6.0/6.1
+# 
+# AUTHOR(S):   	 Eric Patton
+# 
+# PURPOSE:       To fragment a Grass raster into a user-defined number of
+#		 smaller maps. The user selects the number of rows and columns	
+#		 that defines the size of the export region. Optionally, the 
+#		 user can also set threshold for null values in the input map
+#		 above which no output will be produced.  	
+# 
+# COPYRIGHT:     (C) 2006 by the GRASS Development Team
+#
+#                This program is free software under the GNU General Public
+#                License (>=v2). Read the file COPYING that comes with GRASS
+#                for details.
+# 
+# Last Modified: March 20, 2006
+#
+#############################################################################
+
+#%Module
+#% description: Fragments input raster into a specified number of smaller sections
+#%END
+
+#%flag
+#% key: v
+#% description: Set verbose mode
+#%END
+
+#%option 
+#% key: input
+#% type: string
+#% gisprompt: old,cell,raster
+#% required: yes
+#% description: Input raster filename
+#%END
+
+#%option
+#% key: rows
+#% type: integer
+#% required: yes
+#% description: Number of rows to divide into the raster
+#%END
+
+#%option
+#% key: cols
+#% type: integer
+#% required: yes
+#% description: Number of columns to divide into the raster
+#%END
+
+#%option
+#% key: threshold
+#% type: integer
+#% required: no
+#% description: Threshold of null value % above which no raster is exported
+#%END
+
+
+if  [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program." >2&1
+    exit 1
+fi
+
+if [ "$1" != "@ARGS_PARSED@" ] ; then
+     exec g.parser "$0" "$@"
+fi
+
+# Check if we have awk.
+if [ ! -x "`which awk`" ] ; then
+    echo "$SCRIPT: awk required, please install awk or gawk first" 2>&1
+    exit 1
+fi
+
+# Setting environment, so that awk works properly in all languages.
+unset LC_ALL
+export LC_NUMERIC=C
+
+# Setup clean exit for Ctrl-C or similar breaks.
+trap 'echo -e "\n\nUser break or similar caught! Exiting.\n" ; exit 1' 2 3 15
+
+
+INPUT=$GIS_OPT_input
+ROWS=$GIS_OPT_rows
+COLS=$GIS_OPT_cols
+THRESHOLD=$GIS_OPT_threshold
+
+g.region rast=$INPUT
+
+# Full extents of input raster; in meters, not pixels.
+FULL_EW_EXTENT=`g.region -e | awk 'NR == 2 {printf "%i", $4}'`
+FULL_NS_EXTENT=`g.region -e | awk 'NR == 1 {printf "%i", $4}'`
+
+# Initial bounding box of input raster.
+FULL_NORTH=`g.region -g | grep "n=" | cut -d'=' -f2 | awk '{printf "%i", $1}'`
+FULL_SOUTH=`g.region -g | grep "^s=" | cut -d'=' -f2 | awk '{printf "%i", $1}'`
+FULL_EAST=`g.region -g | grep "e=" | cut -d'=' -f2 | awk '{printf "%i", $1}'`
+FULL_WEST=`g.region -g | grep "w=" | cut -d'=' -f2 | awk '{printf "%i", $1}'`
+
+g.region n=$FULL_NORTH s=$FULL_SOUTH e=$FULL_EAST w=$FULL_WEST
+
+# Fragment extents are in meters, not pixels.
+# This is how big our moving raster export window will be.
+FRAG_NS_EXTENT=$((${FULL_NS_EXTENT} / ${ROWS}))
+FRAG_EW_EXTENT=$((${FULL_EW_EXTENT} / ${COLS}))
+
+
+
+# Initialize beginning fragment bounds: northwest corner of input raster
+# r.fragment will move the export window east until it reaches the end of the input raster's easterly extent.
+# Then it will move the window south one row, start at the western edge, and repeat.
+START_WESTING=$FULL_WEST
+START_NORTHING=$FULL_NORTH
+START_EASTING_FLOAT=$((${START_WESTING} + ${FRAG_EW_EXTENT}))
+START_EASTING=`echo $START_EASTING_FLOAT | awk '{printf "%0.f", $1}'`
+START_SOUTHING_FLOAT=$((${START_NORTHING} - ${FRAG_NS_EXTENT}))
+START_SOUTHING=`echo $START_SOUTHING_FLOAT | awk '{printf "%0.f", $1}'`
+
+# Now set export window with START bounds.
+
+g.region n=$START_NORTHING s=$START_SOUTHING e=$START_EASTING w=$START_WESTING
+
+CURRENT_EAST=$START_EASTING
+CURRENT_WEST=$START_WESTING
+CURRENT_NORTH=$START_NORTHING
+CURRENT_SOUTH=$START_SOUTHING
+
+if [ "$GIS_FLAG_v" -eq 1 ] ; then
+	echo -e "\nStarting region is:"
+	echo -e "North: $START_NORTHING"
+	echo -e "South: $START_SOUTHING"
+	echo -e " East: $START_EASTING"
+	echo -e " West: $START_WESTING"
+fi
+
+for ((CURRENT_ROW=1; CURRENT_ROW <= $ROWS; CURRENT_ROW++)) ; do
+	
+	if [ "$GIS_FLAG_v" -eq 1 ] ; then
+		echo -e "\n\n=================================================="
+	fi
+
+	for ((CURRENT_COL=1; CURRENT_COL<=$COLS; CURRENT_COL++)) ; do
+		if [ "$GIS_FLAG_v" -eq 1 ] ; then
+			echo -e "\nProcessing map: $INPUT\n"
+			echo "Row number:    $CURRENT_ROW"
+			echo "Column number: $CURRENT_COL"
+		fi
+		
+		NEWMAP=${INPUT}_${CURRENT_ROW}_${CURRENT_COL}
+		
+		
+		if [ -n "$THRESHOLD" ] ; then
+			
+			TOTAL=`r.univar input=$INPUT | fgrep "total null and non-null" | cut -d':' -f2`
+			NULL=`r.univar input=$INPUT | fgrep "total null cells:"  | cut -d':' -f2`
+			NON_NULL=`r.univar input=$INPUT | grep ^n: | cut -d':' -f2`
+			
+			NULL_RATIO=`echo "$NULL / $TOTAL" | bc -l | awk '{printf "%0.2f", $1}'`
+			NULL_PERCENT=`echo "$NULL_RATIO * 100" | bc`
+			NULL_PERC_INT=`echo $NULL_PERCENT | awk '{printf "%0.f", $1}'`
+
+			if [ "$GIS_FLAG_v" -eq 1 ] ; then
+				echo -e "\n   Total cell count is: $TOTAL"
+				echo "         Null count is: $NULL"
+				echo "Non-null cell count is: $NON_NULL"
+
+				echo "         Null ratio is:  $NULL_RATIO"
+				echo "       Null percent is:  $NULL_PERCENT%"
+				echo "   Null percent int is:  $NULL_PERC_INT"		
+				echo -e "\nThis sub-section has $NULL_PERCENT% null cells."
+			fi
+			
+
+			if [ "$NULL_PERC_INT" -gt "$THRESHOLD" ] ; then
+				if [ "$GIS_FLAG_v" -eq 1 ] ; then
+					echo -e "\nSub-section exceeds null threshold. Skipping raster export...\n"
+					echo "--------------------------------------------------"
+				fi		
+			
+			else
+				r.mapcalc $NEWMAP = "${INPUT}"
+				if [ "$GIS_FLAG_v" -eq 1 ] ; then
+					echo -e "\nCreated new raster named $NEWMAP.\n"
+					echo "--------------------------------------------------"
+				fi	 
+			fi
+			
+			
+		else
+				r.mapcalc $NEWMAP = "${INPUT}"
+				if [ "$GIS_FLAG_v" -eq 1 ] ; then
+					echo -e "\nCreated new raster named $NEWMAP.\n"
+					echo "--------------------------------------------------"
+				fi
+		fi
+			
+		# Now update region, only east and west should change while we're in each column.
+		
+		CURRENT_EAST=`expr ${CURRENT_EAST} + ${FRAG_EW_EXTENT}`
+		CURRENT_WEST=`expr ${CURRENT_WEST} + ${FRAG_EW_EXTENT}`
+	
+		g.region n=$CURRENT_NORTH s=$CURRENT_SOUTH e=$CURRENT_EAST w=$CURRENT_WEST
+		
+		if [ "$GIS_FLAG_v" -eq 1 ] ; then
+			echo -e "\nUpdated current region to:"
+			echo "North: $CURRENT_NORTH"
+			echo "South: $CURRENT_SOUTH"
+			echo " East: $CURRENT_EAST"
+			echo " West: $CURRENT_WEST"
+		fi
+		
+
+		if [ "$CURRENT_EAST" -gt "$FULL_EAST" ] ; then
+			if [ "$GIS_FLAG_v" -eq 1 ] ; then
+				echo -e "\nReached the maximum east extent of $INPUT."
+			fi
+
+			break 1
+		fi
+			
+
+		
+	done
+
+CURRENT_NORTH=$(($CURRENT_NORTH-$FRAG_NS_EXTENT))
+CURRENT_SOUTH=$(($CURRENT_SOUTH-$FRAG_NS_EXTENT))
+CURRENT_WEST=$START_WESTING
+CURRENT_EAST=$START_EASTING
+	
+g.region n=$CURRENT_NORTH s=$CURRENT_SOUTH e=$CURRENT_EAST w=$CURRENT_WEST
+
+	
+done
+
+g.region rast=$INPUT
+
+if [ "$GIS_FLAG_v" -eq 1 ] ; then
+	echo -e "\n================================================="
+	echo -e "\n\nFinished.\n"
+fi
+
+
+exit 0
+		
+		
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

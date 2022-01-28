@@ -1,0 +1,17 @@
+# Extra repositories for bleeding-edge versions!
+
+# Duplicity
+sudo add-apt-repository ppa:duplicity-team/ppa
+
+# Brave browser
+deb [arch=amd64] https://s3-us-west-2.amazonaws.com/brave-apt xenial main
+
+# Tor Project
+deb https://deb.torproject.org/torproject.org xenial main
+deb-src https://deb.torproject.org/torproject.org xenial main
+
+# OpenCPN
+https://launchpad.net/~opencpn/+archive/ubuntu/opencpn
+
+# QGIS
+

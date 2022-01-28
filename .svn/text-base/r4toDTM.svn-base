@@ -1,0 +1,98 @@
+#! /bin/sh
+#
+# A shell script to convert r4 format multibeam bathymetry into lat/long xyz
+# values for import into the Fledermaus program Average Gridder. 
+# This script converts the z-values to negative first, and uses a default 
+# import resolution of ~ 1m. Hack as necessary for other resolutions.
+#
+# By Eric Patton, Geological Survey of Canada (Atlantic)
+#
+#############################################################################
+
+
+SCRIPT=`basename $0`
+
+echo -e -n "\nEnter r4 search pattern: "
+read PATTERN
+
+# Ensure that a search pattern is given.
+while [ -z "$PATTERN" ] ; do
+
+	echo -e "\n$SCRIPT: Error: No raster input received!"
+	echo -n "Please enter a raster search pattern: "
+	read PATTERN
+
+done
+
+# Capture Ctrl-C or similar.
+trap 'echo -e "\n\nUser break! Cleaning up temp files and exiting." ; rm -f TMP* $PATTERN.xyz.LL; exit 1' 2 3 15
+
+
+for MAP in `ls $PATTERN` ; do 
+	
+	echo -e "\n=========================="	
+	echo -e "Processing $MAP...\n"
+	r4toASCII ${MAP} TMP1
+
+	if [ $? -ne 0 ] ; then
+		echo -e "\nr4toASCII was unsuccessful. Exiting."
+		exit 1
+	else
+		echo -e "\n\nFinished r4toASCII conversion..."
+		echo "Beginning formatting..."
+		
+		# The output from r4toASCII that I've seen so far doesn't have negative z-values.
+		# Be careful as the awk portion below will invert the z-values if the output from
+		# r4toASCII actually does produce negative z-values.
+	
+		awk '{print $1, $2, $3*(-1)}' TMP1 > $MAP.xyz.LL
+		XYZ_FILE=$MAP.xyz.LL
+	fi
+	
+	if [ $? -ne 0 ] ; then
+		echo -e "\n\nFormatting of $MAP failed. Exiting."
+		rm -f $MAP.xyz.LL	
+		exit 1
+	else
+		echo -e "\n\nFinished formatting $MAP."
+		echo -e "Cleaning up temp files..."
+		rm -f TMP*
+		echo -e "\nBeginning import to avggrid..."
+		
+		# A resolution of 0.000005 degrees will equal about 1m. Better results (read: more accurate
+		# cell registration) may be obtained if the r4 is converted to utm first before import into 			# avggrid. See my other script r4toUTM for this purpose.
+	
+		avggrid -in ${XYZ_FILE} -out `basename $XYZ_FILE .xyz.LL` -format "y x z" -value z \
+		-cell 0.000005 -dia 3 -batch 
+		
+			if [ $? -ne 0 ] ; then
+				echo -e "\n$SCRIPT: Error: avggrid encountered an error importing r4. Exiting."
+				exit 1
+			else
+				echo -e "\n\nDone."
+				echo "=============================="
+			fi
+	fi
+
+done
+
+exit 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

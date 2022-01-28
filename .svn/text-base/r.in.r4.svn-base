@@ -1,0 +1,154 @@
+#! /bin/sh
+
+if  [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program."
+    exit 1
+fi
+
+SCRIPT=`basename $0`
+
+# Capture Location, Mapset, etc. 
+eval `g.gisenv`
+: ${GISBASE?} ${GISDBASE?} ${LOCATION_NAME?} ${MAPSET?}
+
+trap 'echo -e "\nUser break! Exiting..." ; rm -r TMP* ; exit 1' 2 3 15
+
+echo -e -n "\nEnter r4 search pattern: "
+read PATTERN
+
+echo -e -n "\nEnter utm zone required: "
+read ZONE
+
+
+# Make sure that a search string is given.
+while [ -z "$PATTERN" ] ; do
+
+	echo -e "\n$SCRIPT: Error: No raster input received!"
+	echo -n "Please enter a raster search pattern: "
+	read PATTERN
+
+done
+
+# Make sure that a UTM zone is given.
+while [ -z "$ZONE" ] ; do
+
+	echo -e "\n$SCRIPT: Error: No UTM Zone received!"
+	echo -n "Please enter a UTM zone for Grass raster: "
+	read ZONE
+
+done
+
+# Check if we have awk.
+if [ ! -x "`which awk`" ] ; then
+    echo "$SCRIPT: awk required, please install awk or gawk first" 2>&1
+	exit 1
+fi
+
+# Check if we have proj.
+if [ ! -x "`which proj`" ] ; then
+    echo "$SCRIPT: proj4 required, please install proj first" 2>&1
+	exit 1
+fi
+
+for MAP in `ls $PATTERN` ; do 
+	echo -e "\n\n\n======================================================="
+	echo -e "\nRunning r4toASCII on $MAP. Please standby...\n"
+
+	r4toASCII ${MAP} TMP1
+
+	if [ $? -ne 0 ] ; then
+		echo -e "\n$SCRIPT: r4toASCII was unsuccessful. Exiting."
+		if [ -f TMP1 ] ; then
+			rm -f TMP1				
+			exit 1
+		else
+			exit 1
+		fi
+	else
+		echo -e "\n\nFinished r4toASCII conversion..."
+		echo -e "Beginning import to Grass vector format...\n"
+
+	fi
+	
+	eval `g.findfile element=vector mapset=$MAPSET file=$MAP`
+	
+	if [ -n "$file" ] ; then
+		echo -e "\nRemoved old vector $MAP..."				
+		g.remove vect=$MAP
+	fi	
+	
+	
+	awk '{print $1, $2, $3*(-1)}' TMP1 | proj -r +proj=utm +ellps=WGS84 +zone=$ZONE \
+	| awk '{print $1, $2, $3}' | v.in.ascii -tz output=$MAP fs=' ' \
+	columns='x double precision, y double precision, z double precision' x=1 y=2 z=3 cat=0 
+
+	if [ $? -ne 0 ] ; then
+		echo -e "\n\n$SCRIPT: Vector import failed. Exiting."
+		g.remove vect=$MAP		
+		exit 1
+	else
+		echo -e "\n\nFinished v.in.ascii import. Converting to raster..."
+
+	fi
+
+	eval `g.findfile element=cell mapset=$MAPSET file=$MAP`
+	
+	if [ -n "$file" ] ; then
+			g.remove rast=$MAP
+	fi	
+	
+	g.region vect=$MAP
+	v.to.rast input=$MAP output=$MAP use=z
+
+	if [ $? -ne 0 ] ; then
+		echo -e "\n$SCRIPT: Raster conversion failed. Exiting."
+		g.remove vect=$MAP
+		g.remove rast=$MAP
+		exit 1
+		
+	else
+		echo -e "\n\nFinished vector to raster conversion..."
+		echo -e "Filling raster holes with 3x3 median filter..."
+	fi	
+	
+	eval `g.findfile element=cell mapset=$MAPSET file=$MAP.fill`
+
+	if [ -n "$file" ] ; then
+		echo -e "\nRemoving old $MAP.fill file..."			
+		g.remove rast=$MAP.fill
+	fi	
+
+	r.neighbors input=$MAP output=$MAP.fill method=median size=3
+	
+	echo -e "\n\n3x3 Filtering complete. Creating coloured, shaded-relief raster"
+	echo -e "using az=315, alt=45, zmult=20x...\n"
+
+	FILL=${MAP}_fill
+
+	eval `g.findfile element=cell mapset=$MAPSET file=$FILL`
+	
+	if [ -n "$file" ] ; then
+		echo -e "\nRemoving old $MAP_fill file..."			
+		g.remove rast=$FILL
+	fi
+	
+	g.rename rast="$MAP.fill",$FILL
+
+	sleep 1
+	echo "Using coloured map $FILL..."
+	
+	r.csr map=$FILL rules=rainbow.eq
+
+	if [ $? -ne 0 ] ; then
+		echo -e "\n$SCRIPT: Shaded relief failed. Exiting."
+		exit 1	
+		
+	else
+		echo -e "\n\nDone importing $MAP."
+		
+		echo -e "===================================\n"
+	fi
+
+done
+
+exit 0

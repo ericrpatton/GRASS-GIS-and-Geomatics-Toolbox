@@ -1,0 +1,101 @@
+#! /bin/sh
+#
+#############################################################################
+#
+# MODULE:	 v.out.shape 
+# AUTHOR(S):	 Eric Patton	<epatton nrcan gc ca>
+#
+# PURPOSE:	 Outputs a user-defined list of Grass Vectors in ESRI
+#		 Shapefile format.
+#
+# COPYRIGHT:	 (C) 2006 by the GRASS Development Team
+#
+#		 This program is free software under the GNU General Public
+#		 License (>=v2). Read the file COPYING that comes with GRASS
+#		 for details.
+# Last Modified: March 15, 2006
+#############################################################################
+
+#  Check if we're in Grass
+
+if [ -z  "$GISBASE" ] ; then
+ echo "You must be in GRASS GIS to run this program." >&2
+ exit 1
+fi
+
+# Capture the Location, Mapset and GISBASE variables from g.gisenv to
+# populate the output directory parameter 
+
+eval `g.gisenv`
+: ${GISBASE?} ${GISDBASE?} ${LOCATION_NAME?} ${MAPSET?}
+LOCATION=$GISDBASE/$LOCATION_NAME/$MAPSET
+
+# Prompt for listing.
+echo -e "\nWould you like a listing of vectors in this mapset? (y/n): " 
+read ANSWER
+if [ "$ANSWER" = "y" -o "$ANSWER" = "Y" ] ; then
+	g.list type=vect
+else
+	break	
+fi
+
+# Prompt for search pattern and provide clean exit.
+echo -e "\nEnter the vector search pattern for g.mlist or type \"q\" to quit: "
+read PATTERN
+if [ "$PATTERN" = "q" -o "$PATTERN" = "Q" ] ; then
+	echo -e "\nExiting - Goodbye!"	
+	exit 0
+else	
+	break
+fi
+
+echo -e "\nEnter vector topology type. All vectors must be of the same type (point, line, polygon): "
+read TYPE
+
+# Set the default topology type to point.
+if [ -z "$TYPE" ] ; then 
+	TYPE=point
+fi
+
+# Not sure if there's a better way to check if any vectors
+# match the search pattern, but here goes:
+MATCHES=`g.mlist type=vect pattern="$PATTERN" | wc -l`
+
+# Prompt user for a valid search string until a wildcard match has been made.
+while [ "$MATCHES" -eq 0 ] ; do
+ 	echo "\nSpecified search string not found! Try another search expression, or type \"q\" to quit: "
+ 	read PATTERN
+	
+	if [ "$PATTERN" = "q" -o "$PATTERN" = "Q" ] ; then
+		echo -e "\nExiting - Goodbye!"
+ 		exit 0
+	fi
+	matches=`g.mlist type=vect pattern="$PATTERN" | wc -l`
+done    
+
+# Now that a valid search pattern has been entered, list the candidate maps
+# and prompt for final confirmation for export.
+echo -e "\n========================================"
+echo "`g.mlist type=vect pattern=$PATTERN`"
+echo -e "========================================"
+
+echo -e "\nPattern has matched $MATCHES vectors listed above flagged for export. Proceed? (y/n): "
+	read CONFIRM
+	if [ $CONFIRM = "y" -o $CONFIRM = "Y" -o $CONFIRM = "" ] ; then
+		break
+	else 
+		echo "Exiting - Goodbye!"
+		exit 0
+	fi
+
+for MAP in `g.mlist type=vect pattern=$PATTERN`; do
+	echo -e "\nProcessing map $MAP..."
+	v.out.ogr -e input=$MAP type=$TYPE dsn=$HOME/Exports olayer=$MAP format=ESRI_Shapefile
+	cd $HOME/Exports
+	chmod 755 $MAP.*
+
+
+done
+
+echo -e "\nDone! Shapefile(s) exported to $HOME/Exports."
+exit 0

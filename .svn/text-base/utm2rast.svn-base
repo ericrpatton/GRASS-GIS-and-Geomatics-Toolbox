@@ -1,0 +1,93 @@
+#! /bin/sh
+
+
+# Make sure we're in Grass.
+if  [ -z "$GISBASE" ] ; then
+    echo "You must be in GRASS GIS to run this program."
+    exit 1
+fi
+
+trap 'echo -e "\nUser break! Exiting..." ; rm -r TMP* ; exit 1' 2 3 15
+
+echo  -e -n "\nEnter search pattern: "
+read PATTERN
+
+# Make sure that a search string is given.
+while [ -z "$PATTERN" ] ; do
+
+	echo -e "\n$SCRIPT: Error: No search pattern received!"
+	echo -n "Please enter a utm text file search pattern: "
+	read PATTERN
+
+done
+
+
+
+for MAP in `ls $PATTERN` ; do
+
+	echo -e -n "\nBeginning vector import for $MAP...\n"
+
+	# Remove the old vector if it exists
+	eval `g.findfile element=vector mapset=$MAPSET file=$MAP`
+	
+	if [ -n "$file" ] ; then
+			g.remove vect=$MAP
+			echo ""
+	fi
+
+	v.in.ascii -tz input=$MAP output=$MAP fs=' ' columns='x double precision, y double precision, z double precision' x=1 y=2 z=3 cat=0 
+
+	if [ $? -ne 0 ] ; then
+		echo -e "\n\n$SCRIPT: Vector import failed. Exiting."
+		g.remove vect=$MAP		
+		exit 1
+	else
+		echo -e "\n\nFinished v.in.ascii import. Converting to raster..."
+
+	fi
+
+	# Remove the same raster if it already exists.
+	eval `g.findfile element=cell mapset=$MAPSET file=$MAP`
+	
+	if [ -n "$file" ] ; then
+			g.remove rast=$MAP
+	fi	
+	
+	g.region vect=$MAP
+	v.to.rast input=$MAP output=$MAP use=z
+
+	if [ $? -ne 0 ] ; then
+		echo -e "\n$SCRIPT: Raster conversion failed. Exiting."
+		g.remove vect=$MAP
+		g.remove rast=$MAP
+		exit 1
+		
+	else
+		echo -e "\n\nFinished vector to raster conversion..."
+		echo -e "Filling raster holes with 3x3 median filter..."
+	fi	
+	
+	eval `g.findfile element=cell mapset=$MAPSET file=$MAP.fill`
+
+	if [ -n "$file" ] ; then
+		echo -e "\nRemoving old $MAP.fill file..."			
+		g.remove rast=$MAP.fill
+	fi	
+
+	r.neighbors input=$MAP output=$MAP.fill method=median size=3
+	
+	if [ $? -ne 0 ] ; then
+		echo -e "\n$SCRIPT: Error: Unable to complete median filtering. Exiting."
+		exit 1
+	else
+		echo -e "\n3x3 Filtering complete." 
+	fi
+
+	FILL=${MAP}_fill
+
+	g.rename rast="$MAP.fill",$FILL
+	echo -e "\nRenamed $MAP.fill to $MAP_fill."
+
+done
+
+exit 0

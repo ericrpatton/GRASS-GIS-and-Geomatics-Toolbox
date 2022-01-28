@@ -1,0 +1,42 @@
+#! /bin/sh
+#
+#############################################################################
+#
+# MODULE:        navcheck.sh
+# 
+# AUTHOR(S):   	 Eric Patton, Geological Survey of Canada (Atlantic) 
+# 
+# PURPOSE:       To format GSC-A navigation A-files to comply with GSC-A
+#		 Expedition Database formats
+# 
+# COPYRIGHT:     (C) 2006 Eric Patton
+#
+#                This program is free software under the GNU General Public
+#                License (>=v2). You can redistribute it and/or modify it 
+#		 under the terms of the GNU General Public License as 
+#		 published by the Free Software Foundation; either version 2 
+#		 of the License, or (at your option) any later version.
+# 		 This program is distributed in the hope that it will be useful,
+#		 but WITHOUT ANY WARRANTY; without even the implied warranty of
+#		 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#		 GNU General Public License (GPL) for more details.
+#
+#		 You should have received a copy of the GNU General Public License
+#		 along with this program; if not, write to the
+#		 Free Software Foundation, Inc.,
+#		 59 Temple Place - Suite 330,
+#		 Boston, MA  02111-1307, USA.
+#
+# Last Modified: March 8, 2006
+#
+#############################################################################
+
+#CONFIRM="y"
+
+echo -e "\nExtract sidescan navigation?"
+read CONFIRM
+
+
+done
+
+exit 0	

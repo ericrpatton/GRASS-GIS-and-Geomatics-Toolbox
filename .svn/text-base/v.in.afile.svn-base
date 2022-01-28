@@ -1,0 +1,50 @@
+#! /bin/sh
+#
+# This script takes a GSC-A navigation 'A File'as input. It formats the columns
+# for input into the proj program by using awk to align the columns of data neatly. 
+# After projecting to UTM Zone 20, WGS84 datum, the columns of data 
+# (latitude, longitude, and timestamp) are again re-formatted using awk for input 
+# to the Grass program v.in.ascii.
+# 
+# Created by: Eric Patton, GSC-A
+# Last Modified: February 13, 2006
+#
+###################################################################################
+
+if  [ -z $GISBASE ] ; then
+ echo "You must be in GRASS GIS to run this program."
+ exit 1
+fi
+
+SCRIPT=`basename $0`
+
+# Check if we have awk and proj4.
+
+if [ ! -x "`which awk`" ] ; then
+	echo "$SCRIPT: awk required, please install awk or gawk first." 2>&1
+	exit 1
+fi
+
+if [ ! -x "`which proj`" ] ; then
+	echo "$SCRIPT: proj required, please install proj first." 2>&1
+	exit 1
+fi
+
+echo -e "\nEnter the name of the GSCA A-file to process: "
+read AFILE
+
+# Note- This script assumes that UTM Zone 20 projection, WGS84 datum is being used for the output
+# data. Modify as needed for other projections/datums.
+
+cat $AFILE | awk 'NF != 3 {next} ; {print $2, $3, $1}' | proj -r +proj=utm +ellps=WGS84 +zone=20 | awk '{print $3, $1, $2}' \
+| v.in.ascii output="$AFILE"_new fs=" " columns='cat int, y double precision, x double precision' x=2 y=3 cat=1 
+
+
+if [ "$?" -ne 0 ] ; then
+	echo -e "\n$SCRIPT: Error encountered processing input data! Exiting.\n"	
+	exit 1
+else
+	echo -e "\nFinished!\n"
+fi
+
+exit 0

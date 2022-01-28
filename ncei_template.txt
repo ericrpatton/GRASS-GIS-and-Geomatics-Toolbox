@@ -1,0 +1,46 @@
+for SOUNDER in mb15 mb94 mb41 mb24 mb21 ; do case ${SOUNDER} in
+mb15) SURVEY="Atlantis_II"
+cd $(dirname $(find ./${SURVEY} -name "*.${SOUNDER}" | head -n1))
+echo "Working in the directory ${SURVEY} ..." ; sleep 3 ; rm -v *.${SOUNDER}.* ; sleep 2 ;
+mv datalist.mb-1 datalist_raw.mb-1
+mbpreprocess --input=datalist_raw.mb-1 --platform-file=platform.plf --verbose
+mbm_makedatalist -S.${SOUNDER} -V
+mbdatalist -Z ; echo "" ; sleep 2 ; cd ${ROOT_MB_DIR}
+;;
+mb94)
+for SURVEY in Knorr187l01_2006 Knorr200-02_2011 Ronald_H_Brown_RB0406 Ronald_H_Brown_RB0904 ; do
+ROOT_MB_DIR="/media/4TB_Backup_Drive1/NOAA_Raw_Multibeam"
+cd $(dirname $(find ./${SURVEY} -name "*.${SOUNDER}" | head -n1))
+echo "Working in the directory ${SURVEY} ..." ; sleep 3 ; rm -v *.${SOUNDER}.* ; sleep 2
+mv datalist.mb-1 datalist_raw.mb-1
+mbpreprocess --input=datalist_raw.mb-1 --platform-file=platform.plf --verbose
+mbm_makedatalist -S.${SOUNDER} -V ; mbdatalist -Z ; echo "" ; sleep 2 ; cd ${ROOT_MB_DIR}
+done
+;;
+mb41)
+for SURVEY in Knorr_KN177l03 Knorr_KN197-10 Knorr_KN213-03 Knorr_KN221-01 ; do
+ROOT_MB_DIR="/media/4TB_Backup_Drive1/NOAA_Raw_Multibeam"
+cd $(dirname $(find ./${SURVEY} -name "*.${SOUNDER}" | head -n1))
+echo "Working in the directory ${SURVEY} ..." ; sleep 3 ; rm -v *.${SOUNDER}.* ; sleep 2 ; mv datalist.mb-1 datalist_raw.mb-1
+mbpreprocess --input=datalist_raw.mb-1 --platform-file=platform.plf --verbose
+mbm_makedatalist -S.${SOUNDER} -V ; mbdatalist -Z ; echo "" ; sleep 2 ; cd ${ROOT_MB_DIR}
+done
+ ;;
+mb24)
+ROOT_MB_DIR="/media/4TB_Backup_Drive1/NOAA_Raw_Multibeam"
+SURVEY="Maurice_Ewing_EW0007"
+cd $(dirname $(find ./${SURVEY} -name "*.${SOUNDER}" | head -n1))
+echo "Working in the directory ${SURVEY} ..." ; sleep 3 ; rm -v *.${SOUNDER}.* ; sleep 2 ; mv datalist.mb-1 datalist_raw.mb-1
+mbpreprocess --input=datalist_raw.mb-1 --platform-file=platform.plf --verbose
+mbm_makedatalist -S.${SOUNDER} -V ; mbdatalist -Z ; echo "" ; sleep 2 ; cd ${ROOT_MB_DIR}
+;;
+mb21)
+for SURVEY in Maurice_Ewing_EW9302 Maurice_Ewing_EW9303 Maurice_Ewing_EW9804 Maurice_Ewing_EW9805 Maurice_Ewing_EW9806 Maurice_Ewing_EW9808 ; do
+ROOT_MB_DIR="/media/4TB_Backup_Drive1/NOAA_Raw_Multibeam"
+cd $(dirname $(find ./${SURVEY} -name "*.${SOUNDER}" | head -n1))
+echo "Working in the directory ${SURVEY} ..." ; sleep 3 ; rm -v *.${SOUNDER}.* ; sleep 2 ; mv datalist.mb-1 datalist_raw.mb-1
+mbpreprocess --input=datalist_raw.mb-1 --platform-file=platform.plf --verbose
+ mbm_makedatalist -S.${SOUNDER} -V ; mbdatalist -Z ; echo "" ; sleep 2 ; cd ${ROOT_MB_DIR}
+done
+;;
+esac

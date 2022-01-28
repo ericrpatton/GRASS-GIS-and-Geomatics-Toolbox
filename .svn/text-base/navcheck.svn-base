@@ -1,0 +1,217 @@
+#! /bin/sh
+#
+# A script to keep Susan/Barb from bugging me for formatted nav FOREVER.
+
+SCRIPT=`basename $0`
+
+
+# Check if we have awk.
+if [ ! -x "`which awk`" ] ; then
+    echo "$SCRIPT: awk required, please install awk or gawk first" 2>&1
+    exit 1
+fi
+
+# Capture Ctrl-C and similar breaks
+trap 'echo -e "\n\nUser break! Exiting.\n" ; exit 1' 2 3 15
+
+
+# See if a filename was passed as a parameter; if so, use it, if not prompt for one.
+case "$#" in
+
+0)	echo -e -n "\nEnter name of navigation A-File to check: " ; read AFILE 
+echo -n -e "\nEnter sub-minute resolution (sub) or minute resolution (min): "
+read RES ;;
+
+1) AFILE=$1 
+
+echo -n -e "\nEnter sub-minute resolution (sub) or minute resolution (min): "
+read RES ;;
+
+2) AFILE=$1 ; RES=$2 ;;
+
+
+*) echo -e "\n$SCRIPT: Error: program syntax is: navcheck filename resolution"
+   echo -e "Zero, one, or two parameters are accepted, but no more than two.\n" 
+   exit 1	;;
+
+esac
+			
+
+# Check parameters
+while [ ! -f "$AFILE" ] ; do
+	echo -e "\n$SCRIPT: Error: Specified A-file doesn't exist!" 
+	echo -n "Re-enter an existing A-file in the current directory: "
+	read AFILE
+done	
+	
+while [ "$RES" != "sub" -a "$RES" != "min" ] ; do
+	echo -e "\n$SCRIPT: Error: Specified time resolution is not accepted!"
+	echo -n "Please re-enter either sub-minute (sub) or minute (min) resolution: "
+	read RES
+done
+
+
+echo -e "\n================================"
+echo -e "Checking timestamps..."
+
+#########################################################################
+#
+#                     CHECKING TIMESTAMPS FOR ERRORS
+#
+#########################################################################
+
+awk ' BEGIN { error=0 }
+		
+	res="$RES"
+	
+	# Test 1: A GSC-A 'a-file' can only have 3 columns of data.
+
+	{ if (NF != 3) {
+	print "Error: Record " FNR ": A-File should have exactly 3 columns of data ONLY."
+    	error++ }
+
+	# Test 2a: If RES is sub-minute, Timestamps can only have 9 digits: Day (3), hour (2), minute (2) seconds (2).
+	
+	if (res == "sub" && length($1) != 9){ 
+		print "Error: Record " FNR ": timestamp should have 9 digits."
+		error++ }
+
+	# Test 2b: If RES is minute, Timestamps can only have 7 digits: Day (3), hour (2), minute (2).
+
+	if (res == "min" && length($1) != 7){
+		print "Error: Record " FNR ": timestamp should have 7 digits."
+		error++ }
+
+	# Test 3: Check to see if the timestamp is less than the variable 'prev'.
+	#        The value of prev is always that of the timestamp in the previous
+	#        record. If timestamp is less than the preceding one, it must be
+	#        out of chronological order. The else statement makes sure that
+	#        the variable prev still gets set equal to the current timestamp if the 
+	#	     current timestamp passes the if test.
+
+	if ($1 < prev){
+		print "Error: Record " FNR ": timestamp out of chronological order."
+		error++ }
+	
+	# Test 4: Make sure that no Julian days greater than 365 exist.
+
+	if (substr($1,1,3) < 0 || substr($1,1,3) > 365){
+		print"Error: Record " FNR ": Julian day must be between 0 and 365."
+		error++ }
+
+	# Test 5: Make sure no hour values greater than 23 exist.
+	
+	if (substr($1,4,2) > 23){
+		print "Error: Record " FNR " has hour value greater than 23."
+		error++ }	
+
+	# Test 6 : Make sure no minute values greater than 59 exist.
+
+	if (substr($1,6,2) > 59){
+		print "Error: Record " FNR " has minutes value greater than 59."
+		error++ }
+	
+	# Test 7: Make sure no time gaps greater than one minute exist between
+	#		  susccessive timestamps.
+	
+	if (($1 - prev) > 60 && FNR != 1){
+		print "Error: Record " FNR " has a time gap greater than one minute."
+		prev = $1	
+		error++ }
+	
+	else prev = $1
+
+	}
+
+   END { printf "\n\nThere are " error " timestamp errors.\n" 
+	     printf "================================\n\n\n" }' $AFILE
+
+sleep 3
+
+
+
+
+#########################################################################
+#
+#                    CHECKING LATITUDE VALUES FOR ERRORS
+#
+#########################################################################
+
+echo -e "\n\n================================="
+echo -e "Checking latitude values..."
+
+
+# Test 1: Latitude values must consist of 2 digits for degrees, a decimal, and 6
+#	      digits for decimal degrees for nine characters.
+
+awk ' BEGIN { lat_error = 0 }
+	{ if (length($2) != 9) {
+	print "Error: Record " FNR ": latitude value should have 9 characters."
+	lat_error++ }
+
+# Test 2: All GSC-A navigation will be in Canadian waters (at least for the forseeable
+#	      future). So no values south of 40 or north of 90 should exist.
+
+	if (length($2) == 9 && ($2 > 90 || $2 < 40)) {
+	print "Error: Record " FNR ": GSC-A nav should have latitude values between 40 and 90 North."
+	lat_error++ }
+	
+	}
+		
+        END { printf "\n\nThere are " lat_error " latitude errors.\n" 
+	          printf "================================\n\n\n" }' $AFILE	
+
+
+sleep 3
+
+
+#########################################################################
+#
+#                    CHECKING LONGITUDE VALUES FOR ERRORS
+#
+#########################################################################
+
+echo -e "\n\n============================"
+echo -e "Checking longitude values..."
+
+
+
+# Test 1: Longitude values must consist of 3 digits for degrees (negative sign, plus two digits
+#	      for degrees value), a decimal, and 6 digits for decimal degrees for ten characters.
+
+awk ' BEGIN { long_error = 0 }
+
+	{ if (length($3) != 11) {
+	print "Error: Record " FNR ": longitude values should have 11 characters."
+	long_error++ ; long_check_1=="failed"}
+	
+	# else long_check_1=="passed"
+	
+
+# Test 2: Longitude values must be constrained to GSC-A survey longitudes on the east coast.
+
+	if (length($3) == 11 && ($3 > -45 || $3 < -75)) {
+	print "Error: Record " FNR ": GSC-A nav should have longitude values between -45 and -75 degrees West."
+	long_error++ }
+
+	# else long_check_2=="passed"
+
+	#if (long_check_1=="failed" && long_check_2=="passed") {
+	#$3 = $3 * 10	
+	
+	}
+
+	    END { printf "\n\nThere are " long_error " longitude errors.\n" 
+			  printf "============================\n\n\n" }' $AFILE	
+
+exit 0
+
+
+
+
+
+
+
+
+
+
