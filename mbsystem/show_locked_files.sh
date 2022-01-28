@@ -1,11 +1,11 @@
 #! /bin/bash
 #
-# shl: (or, SHow Locked files): Runs mbdatalist -S in the current directory, on
-# the default datalist, showing all locked files. Run mbdatalist -Y afterwards
-# to remove any locked files.
+# Runs mbdatalist -S in the current directory, on the default datalist, showing
+# all locked files. Run mbdatalist -Y afterwards to remove any locked files.
 #
 # Created: March 26, 2021
 # Modified: Oct 6, 2021
+#
 # by Eric Patton
 #
 ##############################################################################
