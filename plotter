@@ -1,5 +1,0 @@
-#! /bin/bash
-
-lpr -P "Hewlett-Packard-HP-Color-LaserJet-CM4540-MFP" $1
-
-exit 0
