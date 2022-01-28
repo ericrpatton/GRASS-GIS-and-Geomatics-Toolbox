@@ -7,7 +7,8 @@
 # AUTHOR:   	 Eric Patton, Geological Survey of Canada (Atlantic)
 # 		         <Eric dot Patton at Canada dot ca>
 #
-# PURPOSE:       ...
+# PURPOSE:       This is a cellection of script fragments that I use over and
+# over, all placed here for easy reference.
 #
 # COPYRIGHT:     (c) 2021 by Eric Patton
 #
@@ -15,8 +16,8 @@
 #                License (>=v3). Read the file COPYING that comes with GRASS
 #                for details.
 # 
-# Created:		  , 2021
-# Last Modified:  , 2021
+# Created:		  January 27, 2022
+# Last Modified:  January 27, 2022
 #
 #############################################################################
 
