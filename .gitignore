@@ -20,6 +20,7 @@ restore_resource_files.sh
 send.py
 ship_rsync.sh
 sounds.wav
+*.swp
 start_monerod.sh
 transpose
 transpose-2.0.zip
