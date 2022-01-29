@@ -7,10 +7,10 @@
 # AUTHOR:   	 Eric Patton, Geological Survey of Canada (Atlantic)
 # 		         <Eric dot Patton at Canada dot ca>
 #
-# PURPOSE:       This is a cellection of script fragments that I use over and
+# PURPOSE:       This is a collection of script fragments that I use over and
 # over, all placed here for easy reference.
 #
-# COPYRIGHT:     (c) 2021 by Eric Patton
+# COPYRIGHT:     (c) 2021-2022 by Eric Patton
 #
 #                This program is free software under the GNU General Public
 #                License (>=v3). Read the file COPYING that comes with GRASS
@@ -90,6 +90,8 @@ echo -e "\nWaiting ${MINUTES} minutes before re-executing..."
 timer.sh ${PAUSE}
 echo  ""
 
+
+# Format for generic case statement
 case "$#" in
 
 0) read -p "Enter name of navigation A-File to check: " AFILE 
