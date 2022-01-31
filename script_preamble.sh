@@ -141,3 +141,7 @@ BEGIN {
 	close ("Amundsen_2021_SEGY_times.txt") 
 }
 
+### CREATING DATABASE INDICES FOR LOCATE ###
+# Substite for the actual drive name below
+
+updatedb -l 0 -o EP_ARCH_09.db -U . 
