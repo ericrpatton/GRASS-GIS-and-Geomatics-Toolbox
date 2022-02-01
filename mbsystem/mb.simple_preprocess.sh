@@ -29,7 +29,7 @@
 #                for details.
 # 
 # Created:		 February 8, 2021
-# Last Modified: February 21, 2021
+# Last Modified: February 1, 2022
 #
 #############################################################################
 
@@ -72,6 +72,5 @@ mbm_makedatalist -S.${PROCESSED_FORMAT} -V
 [[ ! -f "datalist.mb-1" ]] && cp datalist_raw.mb-1 datalist.mb-1
 
 mbdatalist -Z
-cd -
 
 exit 0
