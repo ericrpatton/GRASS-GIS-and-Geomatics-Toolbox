@@ -11,13 +11,13 @@
 #				 datalist region and imports them as a Grass vector polygon. A centroid, and
 #			     table with cat and Name columns is added as well.	
 # 
-# COPYRIGHT:     Copyright (C) 2007-2020 by Eric Patton
+# COPYRIGHT:     Copyright (C) 2007-2022 by Eric Patton
 #
 #                This program is free software under the GNU General Public
 #                License (>=v3). Read the file COPYING that comes with GRASS
 #                for details.
 # 
-# Last Modified: November 26, 2020
+# Last Modified: February 1, 2022
 # 
 #############################################################################
 #
@@ -111,8 +111,8 @@ unset LC_ALL
 export LC_NUMERIC=C
 
 if [ "$GIS_FLAG_g" -eq 1 ] ; then	
-	# Get the bounding box coordinates from g.region; the coordinates will be
-	# in projected units, *not* lat-long.
+	# Get the bounding box coordinates from g.region; the coordinates thus
+	# obtained will be in projected units, *not* lat-long.
 	
 	eval $(g.region -pg)
 	: ${w?} ${e?} ${s?} ${n?}
@@ -172,7 +172,7 @@ awk 'BEGIN {print "B 5 1"} {print " "$1, $2} END {print "1 1"}' bounding_coords.
 
 # Import to Grass vector format.
 echo -e "Importing boundingbox coords to vector format...\n"
-v.in.ascii -n input=- output=${BOUNDINGBOX} format=standard sep=space --o < bounding_coords_clean.txt
+v.in.ascii -n input=- output=${BOUNDINGBOX} format=standard sep=space < bounding_coords_clean.txt
 
 # Add centroids to new bounding box
 v.centroids input=${BOUNDINGBOX} output=TEMP --o --q
@@ -198,15 +198,10 @@ if [ "$GIS_FLAG_r" -eq 1 ] ; then
 	if [[ -z ${file} ]] ; then
 	
 		echo -e "\nRasterizing input vector bounding box...\n"
-		v.to.rast input=${BOUNDINGBOX} output=${BOUNDINGBOX}_rast use=val val=1 mem=20000 --o 
+		v.to.rast input=${BOUNDINGBOX} output=${BOUNDINGBOX}_rast use=val val=1 mem=20000  
 	
 		[[ $? -eq 1 ]] && echo -e "\nError: $SCRIPT: v.to.rast conversion failed! Perhaps the region is too big?" && exit 1 || echo -e "\nProduced a raster map ${BOUNDINGBOX}_rast from incoming vector map ${BOUNDINGBOX}.\n"
-
-	else 
-		echo -e "\nRaster boundingbox ${BOUNDINGBOX_rast} already exists; skipping creation of this file."
 	fi
-	
-	
 fi
 
 # Cleanup
