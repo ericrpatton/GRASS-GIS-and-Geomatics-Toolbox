@@ -98,14 +98,21 @@ PAUSE=5
 MAXSIZE=400000000 # Discovered through trial and error on this machine
 
 # Check if we have awk.
-if [ ! -x "`which awk`" ] ; then
-    echo "$SCRIPT: awk required, please install awk or gawk first" 2>&1
+if [ ! -x $(which awk) ] ; then
+    echo "$SCRIPT: awk not found, please install awk or gawk first" 2>&1
     exit 1
 fi
 
 # Check if we have bc.
-if [ ! -x "`which bc`" ] ; then
-    echo "$SCRIPT: bc required, please install bc first." 2>&1
+if [ ! -x $(which bc) ] ; then
+    echo "$SCRIPT: bc not found, please install bc first." 2>&1
+    exit 1
+fi
+
+# Check if we have v.in.boundingbox.
+if [ ! -x $(which v.in.boundingbox) ] ; then
+    echo "$SCRIPT: v.in.boundingbox not found, please install v.in.boundingbox first." 2>&1
+	echo " Download link: https://github.com/ericrpatton/GRASS-GIS-and-Geomatics-Toolbox" 
     exit 1
 fi
 
@@ -123,7 +130,41 @@ VECTOR_OUTPUT_ROOT=$(echo $OUTPUT_ROOT | sed 's/\./_/g')
 VECT_BOUNDINGBOX="${VECTOR_OUTPUT_ROOT}_bounds"
 RASTERBOUNDS="${VECT_BOUNDINGBOX}_rast"
 
+# Use eval to capture Grass environment vaiables like the current MAPSET.
+eval $(g.gisenv)
+: ${MAPSET?}
+
+# Check whether the output vector name already exists in Grass
+eval `g.findfile element=vector mapset=${MAPSET} file=${VECT_BOUNDINGBOX}` 
+: ${file?}
+
+VECTOR_EXISTS_CHECK=$file
+
+if [ -n "$VECTOR_EXISTS_CHECK" ] ; then
+	echo -e "\nError: $SCRIPT: Output vector $VECT_BOUNDINGBOX already exists."
+	exit 1
+fi
+
+# Check whether the output raster boundingbox name already exists in Grass
+eval `g.findfile element=cell mapset=${MAPSET} file=${VECT_BOUNDINGBOX}` 
+: ${file?}
+
+RASTER_EXISTS_CHECK=$file
+
+if [ -n "$RASTER_EXISTS_CHECK" ] ; then
+	echo -e "\nError: $SCRIPT: Output raster ${VECT_BOUNDINGBOX}_rast already exists."
+	exit 1
+fi
+
 if [ "$REGION" = "INFO" -o "$REGION" = "info" ] ; then 
+
+	# Check if we have mb.getinforegion
+	if [ ! -x $(which mb.getinforegion) ] ; then
+	    echo "$SCRIPT: mb.getinforegion not found, please install mb.getinforegion first." 2>&1
+		echo " Download link: https://github.com/ericrpatton/GRASS-GIS-and-Geomatics-Toolbox" 
+	    exit 1
+	fi
+
 	# v.in.boundingbox uses mb.getinforegion to capture maximum gridding region
 	# of all files in the input datalist.  The -i flag checks to see if there is
 	# a file in the current directory named mbinfo.txt (or $DATALIST_mbinfo.txt)
@@ -134,7 +175,7 @@ if [ "$REGION" = "INFO" -o "$REGION" = "info" ] ; then
 	# is bigger than $MAXSIZE.
 	echo -e "\nUsing mb.getinforegion to extract bounds of the datalist extent. Please standby...\n"
 
-	v.in.boundingbox -ir boundingbox=${VECT_BOUNDINGBOX} datalist=${DATALIST} --o 
+	v.in.boundingbox -ir boundingbox=${VECT_BOUNDINGBOX} datalist=${DATALIST} 
 	echo -e "\nFound the following region through mb.getinforegion:\n"
 	g.region rast=${RASTERBOUNDS} res=${RES} -ap
 	echo ""
@@ -173,7 +214,7 @@ else
 	# flag will create a raster from the vector bounding box. v.in.boundingbox
 	# will create a raster with the default name of $RASTERBOUNDS, that is,
 	# $VECT_BOUNDINGBOX_rast.
-	v.in.boundingbox -gr boundingbox=${VECT_BOUNDINGBOX} datalist=${DATALIST} --o 
+	v.in.boundingbox -gr boundingbox=${VECT_BOUNDINGBOX} datalist=${DATALIST} 
 fi
 
 # If the -c flag is passed, run mbclean on the datalist using default settings.
@@ -256,9 +297,6 @@ if [ "$CELLS_INT" -gt "$MAXSIZE" ] ; then
 	echo "We will need to split the region of $DATALIST into $NUMBER_OF_FRAGMENT_COLS strips of size $SIZE_CHECK."
 	sleep $PAUSE
 
-	eval $(g.gisenv)
-	: ${MAPSET?}
-
 	# Check to see if the input datalist has already been split into fragments
 	# or not. If so, use those sections instead of regenerating them each time.
 	eval $(g.findfile element=cell mapset=$MAPSET file=${RASTERBOUNDS}_r1_c${NUMBER_OF_FRAGMENT_COLS})
@@ -328,6 +366,7 @@ else
 	#mbgrid -A${DATATYPE} -C2/1 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${MAX_WEST_LL}/${MAX_EAST_LL}/${MAX_SOUTH_LL}/${MAX_NORTH_LL} -O ${OUTPUT_ROOT} -V
 
 
+	# If the -s flag is given, skip interpolation of data voids in output raster
 	if [ $GIS_FLAG_s -eq 1 ] ; then
 	
 		mbgrid -A${DATATYPE} -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${MAX_WEST_LL}/${MAX_EAST_LL}/${MAX_SOUTH_LL}/${MAX_NORTH_LL} -O ${OUTPUT_ROOT} -V
