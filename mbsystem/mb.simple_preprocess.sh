@@ -50,13 +50,13 @@ exitprocedure()
 # Setup clean exit for Ctrl-C or similar breaks.
 trap 'exitprocedure' 2 3 15
 
-INPUT=$(ls -1 | head -n1)
+#INPUT=$(ls -1 | head -n1)
 
 # -K in mbformat causes the fileroot and the format id to be output. The
 # fileroot is the filename with any format specific suffix removed.
-PRE_FORMAT=$(mbformat -K -I ${INPUT} | cut -d' ' -f2)
+#PRE_FORMAT="mb$(mbformat -K -I ${INPUT} | cut -d' ' -f2)"
 
-mbm_makedatalist -S.mb${PRE_FORMAT} -O datalist_raw.mb-1 -V
+mbm_makedatalist -O datalist_raw.mb-1 -V
 mbmakeplatform --swath=datalist_raw.mb-1 --output=platform.plf --verbose
 mbpreprocess --input=datalist_raw.mb-1 --skip-existing --platform-file=platform.plf --verbose
 PROCESSED_FILE=$(ls -1 | awk 'NR == 2 {print $1}')
