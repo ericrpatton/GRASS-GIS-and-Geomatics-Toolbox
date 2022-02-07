@@ -187,21 +187,10 @@ if [ "$GIS_FLAG_r" -eq 1 ] ; then
 	RES=$GIS_OPT_resolution
 	g.region vect=${BOUNDINGBOX} res=${RES}
 
-	# Use eval to capture Grass environment vaiables like the current MAPSET.
-	eval $(g.gisenv)
-	: ${MAPSET?}
-
-	# Check to see if the raster boundingbox already exists. 
-	eval $(g.findfile element=cell mapset=${MAPSET} file=${BOUNDINGBOX}_rast) 
-	: ${file?}
-
-	if [[ -z ${file} ]] ; then
-	
-		echo -e "\nRasterizing input vector bounding box...\n"
-		v.to.rast input=${BOUNDINGBOX} output=${BOUNDINGBOX}_rast use=val val=1 mem=20000  
+	echo -e "\nRasterizing input vector bounding box...\n"
+	v.to.rast input=${BOUNDINGBOX} output=${BOUNDINGBOX}_rast use=val val=1 mem=20000  --v --o
 	
 		[[ $? -eq 1 ]] && echo -e "\nError: $SCRIPT: v.to.rast conversion failed! Perhaps the region is too big?" && exit 1 || echo -e "\nProduced a raster map ${BOUNDINGBOX}_rast from incoming vector map ${BOUNDINGBOX}.\n"
-	fi
 fi
 
 # Cleanup
