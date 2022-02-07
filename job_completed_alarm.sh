@@ -1,5 +1,5 @@
 #! /bin/bash
 
-notify-send "GRASS GIS" "Process Completed" && mpv --no-terminal /home/epatton/coderepo/alarm.oga && job_completed_text.sh
+notify-send "GRASS GIS" "Process Completed" && /home/epatton/coderepo/Mario_Victory_Theme.sh
 
 exit 0
