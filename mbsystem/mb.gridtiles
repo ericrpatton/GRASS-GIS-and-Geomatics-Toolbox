@@ -175,7 +175,7 @@ if [ "$REGION" = "INFO" -o "$REGION" = "info" ] ; then
 	# is bigger than $MAXSIZE.
 	echo -e "\nUsing mb.getinforegion to extract bounds of the datalist extent. Please standby...\n"
 
-	v.in.boundingbox -ir boundingbox=${VECT_BOUNDINGBOX} datalist=${DATALIST} 
+	v.in.boundingbox -ir boundingbox=${VECT_BOUNDINGBOX} datalist=${DATALIST} res=${RES}
 	echo -e "\nFound the following region through mb.getinforegion:\n"
 	g.region rast=${RASTERBOUNDS} res=${RES} -ap
 	echo ""
@@ -233,7 +233,7 @@ fi
 if  [ ${GIS_FLAG_c} -eq 1 ] ; then
 	echo -e "\nThe -c flag has been passed; running mbclean..."
 	sleep ${PAUSE}
-	mbclean -F-1 -I ${DATALIST} -C65/2 -W-180/-30/30/89 -P0.5/30 -D0.01/0.2 -A4 -V
+	mbclean -F-1 -I ${DATALIST} -C65/2 -W-180/-30/30/89 -P0.5/30 -D0.01/0.2 -A4 -X5 -V
 fi
 
 if  [ ${GIS_FLAG_p} -eq 1 ] ; then
