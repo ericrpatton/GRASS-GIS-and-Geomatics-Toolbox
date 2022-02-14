@@ -36,7 +36,7 @@ echo -e "\n------------- ${SCRIPT} --------------\n"
 
 # Assign a default resolution and output filename to use if none was given on the command line.
 [[ -z ${INPUT} ]] && INPUT=bathy.xyz
-[[ -z ${RES} ]] && RES=1
+[[ -z ${RES} ]] && RES=10
 
 OUTPUT="`basename ${INPUT} .xyz`_${RES}m"
 
