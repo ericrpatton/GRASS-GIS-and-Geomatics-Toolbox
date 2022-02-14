@@ -2,6 +2,7 @@
 
 INPUT_SUFFIX=$(echo $INPUT | cut -d'.' -f2)
 INPUT_BASE=$(basename $INPUT .$INPUT_SUFFIX)
+OUTPUT=${INPUT_BASE}
 OUTPUT_TEXT=${INPUT_BASE}.txt 
 OUTPUT_TIFF=${INPUT_BASE}.tif              
 OUTPUT_GRID=${INPUT_BASE}.grd              
