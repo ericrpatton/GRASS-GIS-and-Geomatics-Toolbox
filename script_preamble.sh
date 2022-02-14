@@ -28,12 +28,7 @@ if [ "$#" -ne 1 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "
 fi
 
 # Source make_filenames.sh, a script which handles all the filename wrangling
-# that should be needed. Add missing file formats as needed.
-if [[ -f /home/epatton/coderepo/make_filenames.sh ]] ; then
-
-	set -- $INPUT
-	.  /home/epatton/coderepo/make_filenames.sh
-fi
+[[ -f /home/epatton/coderepo/make_filenames.sh ]] && set -- $INPUT && . /home/epatton/coderepo/make_filenames.sh
 
 # What to do in case of user break:
 exitprocedure()
