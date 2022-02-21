@@ -28,17 +28,17 @@
 
 #%flag
 #% key: c 
-#% description: Clean datalist.mb-1 using mbclean with default settings
+#% description: Clean datalist.mb-1 using mbclean with default settings.
 #%END
 
 #%flag
 #% key: p 
-#% description: Run mbprocess on datalist.mb-1 in parallel processing mode
+#% description: Run mbprocess on datalist.mb-1 in parallel processing mode.
 #%END
 
 #%flag
 #% key: s 
-#% description: Skip spline interpolation of null grid cells
+#% description: Skip spline interpolation of null grid cells.
 #%END
 
 #%option 
@@ -89,7 +89,7 @@ DATATYPE=${GIS_OPT_datatype}
 OUTPUT_ROOT="$(basename $DATALIST .mb-1)_${RES}m"
 
 SCRIPT=$(basename $0)
-PAUSE=5
+PAUSE=0.75
 
 # The maximum number of raster rows and columns allowed before the input
 # datalist region is split into equal-sized chunks. This is an arbitrary
@@ -181,7 +181,7 @@ if [ "$REGION" = "INFO" -o "$REGION" = "info" ] ; then
 	echo ""
 	sleep ${PAUSE}
 else
-	# Use the region provided by the user.
+	# Use the region provided by the user on the command line.
 
 	echo -e "\nUsing user-provided region. Please standby...\n"
 	MAX_WEST=$(echo $REGION | cut -d'/' -f1)
@@ -210,10 +210,10 @@ else
 	g.region w=${WESTING} e=${EASTING} s=${SOUTHING} n=${NORTHING} res=${RES} -ap
 	echo "" ; sleep $PAUSE
 	
-	# The -g flag below will use the region set by g.region above, and the -r
-	# flag will create a raster from the vector bounding box. v.in.boundingbox
-	# will create a raster with the default name of $RASTERBOUNDS, that is,
-	# $VECT_BOUNDINGBOX_rast.
+	# The -g flag in the command below will use the region set by g.region
+	# above, and the -r flag will create a raster from the vector bounding box.
+	# v.in.boundingbox will create a raster with the default name of
+	# $RASTERBOUNDS, that is, $VECT_BOUNDINGBOX_rast.
 	v.in.boundingbox -gr boundingbox=${VECT_BOUNDINGBOX} datalist=${DATALIST} 
 fi
 
@@ -233,7 +233,7 @@ fi
 if  [ ${GIS_FLAG_c} -eq 1 ] ; then
 	echo -e "\nThe -c flag has been passed; running mbclean..."
 	sleep ${PAUSE}
-	mbclean -F-1 -I ${DATALIST} -C65/2 -W-180/-30/30/89 -P0.5/30 -D0.01/0.2 -A4 -X5 -V
+	mbclean -F-1 -I ${DATALIST} -C65/2 -W-180/-30/30/89 -P0.5/30 -D0.01/0.2 -A4 -V
 fi
 
 if  [ ${GIS_FLAG_p} -eq 1 ] ; then
@@ -363,16 +363,13 @@ else
 	MAX_SOUTH_LL=$(g.region -bg rast=${RASTERBOUNDS} --q | grep ll_s | cut -d'=' -f2)
 	MAX_NORTH_LL=$(g.region -bg rast=${RASTERBOUNDS} --q | grep ll_n | cut -d'=' -f2)
 	
-	#mbgrid -A${DATATYPE} -C2/1 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${MAX_WEST_LL}/${MAX_EAST_LL}/${MAX_SOUTH_LL}/${MAX_NORTH_LL} -O ${OUTPUT_ROOT} -V
-
-
 	# If the -s flag is given, skip interpolation of data voids in output raster
 	if [ $GIS_FLAG_s -eq 1 ] ; then
 	
-		mbgrid -A${DATATYPE} -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${MAX_WEST_LL}/${MAX_EAST_LL}/${MAX_SOUTH_LL}/${MAX_NORTH_LL} -O ${OUTPUT_ROOT} -V
+		mbgrid -A${DATATYPE} -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${MAX_WEST_LL}/${MAX_EAST_LL}/${MAX_SOUTH_LL}/${MAX_NORTH_LL} -M -O ${OUTPUT_ROOT} -V
 	else
 
-		mbgrid -A${DATATYPE} -C2/1 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${MAX_WEST_LL}/${MAX_EAST_LL}/${MAX_SOUTH_LL}/${MAX_NORTH_LL} -O ${OUTPUT_ROOT} -V
+		mbgrid -A${DATATYPE} -C2/1 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${MAX_WEST_LL}/${MAX_EAST_LL}/${MAX_SOUTH_LL}/${MAX_NORTH_LL} -M  -O ${OUTPUT_ROOT} -V
 	fi
 	
 	echo -e "Reprojecting with gdalwarp...\n"
@@ -383,11 +380,10 @@ else
 fi
 
 r.colors -e map=${OUTPUT_ROOT} color=bof_unb --q
-r.optimize ${OUTPUT_ROOT}
+sleep ${PAUSE} ; r.optimize ${OUTPUT_ROOT}
 r.csr input=${OUTPUT_ROOT}
 
 # Cleanup
-rm ${OUTPUT_ROOT}*.grd
 [[ -f "coords.txt" ]] && rm coords.txt
 
 echo -e "\n$SCRIPT: Done."
