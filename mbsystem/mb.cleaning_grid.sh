@@ -35,7 +35,7 @@ trap 'exitprocedure' 2 3 15
 
 if [ "$#" -gt 2 -o "$#" -eq 0 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
 	echo -e "\nusage: $SCRIPT datalist_name [ resolution ] \n"
-	exit 1
+	exit 0
 fi
 
 DATALIST=$1
