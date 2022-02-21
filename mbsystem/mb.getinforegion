@@ -31,7 +31,7 @@ SCRIPT=$(basename $0)
 
 if [ "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
 	echo -e "\nusage: $SCRIPT [datalist_name]\n"
-	exit 1
+	exit 0
 fi
 
 # Note: Do NOT use the processed (*p.mb-1) datalist as input to this script. 
