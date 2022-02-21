@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# Rounds decimal portions of numbers up to the next whole integer.
+# Rounds decimal portions of numbers down to the next whole integer.
 
 INPUT=$1
 echo ${INPUT} | awk '
