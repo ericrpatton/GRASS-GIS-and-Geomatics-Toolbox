@@ -19,6 +19,8 @@
 # Created:		 February 26, 2021
 # Last Modified: March 1, 2021
 #
+# NOTE: The output resolution is hardcoded for now.
+#
 #############################################################################
 
 if  [ -z "$GISBASE" ] ; then
@@ -39,18 +41,20 @@ exitprocedure()
 trap 'exitprocedure' 2 3 15
 
 if [ "$#" -lt 2 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
-	echo -e "\nusage: $SCRIPT datalist_name binsize [region] [threshold] [nmin] \n"
+	echo -e "\nusage: $SCRIPT datalist_name binsize [threshold (2.0)] [nmin (10)] \n"
 	exit 1
 fi
 
 DATALIST=$1
 
-# Sets the size of the bins to be used in meters
+# Sets the size of the bins to be used in meters used for statistical tests.
+# NOTE: This is should be kept the same as the output grid resolution in mbgrid
+# below; if not, the standard deviation stats produced by mbareaclean and mbgrid
+# -M won't match
 BINSIZE=$2
 
-# Set the processing region to that of the current GRASS computational region,
-# if no region parameter was given on the command line.
-[[ -z "$3" ]] && REGION=$(mb.getregion) || REGION=$3
+# Use the datalist extent to populate the REGION given with the -R flag.
+REGION=$(mb.getinforegion) 
 
 #The threshold parameter turns  on  use of a standard deviation filter test for
 #the soundings.  Soundings that differ from the mean depth by a value greater
@@ -58,35 +62,31 @@ BINSIZE=$2
 #threshold = 2.0, then any sounding that is twice the standard deviation from
 #the mean depth will be considered bad. The nmin parameter sets the minimum
 #number of soundings required to use the standard deviation filter. The default
-#values are threshold = 2.0 and #nmin = 10.
+#values are threshold = 2.0 and nmin = 10.
 
-# Assign default values if non were given on the command line.
-[[ -z "$4" ]] && THRESHOLD=2.0 || THRESHOLD=$4 
-[[ -z "$5" ]] && NMIN=10 || NMIN=$5 
-
+# Assign default values if none were given on the command line.
+[[ -z "$3" ]] && THRESHOLD=2.0 || THRESHOLD=$3
+[[ -z "$4" ]] && NMIN=10 || NMIN=$4 
 
 PROCESSED_DATALIST="$(basename ${DATALIST} .mb-1)p.mb-1"
-OUTPUT_ROOT="areaclean_grid_$(date '+%b%d_%Y')_bin${BINSIZE}_thres${THRESHOLD}_nmin${NMIN}"
+OUTPUT_RES=12
+OUTPUT_ROOT="areaclean_grid_$(date '+%b%d_%Y')_bin${BINSIZE}_thres${THRESHOLD}_nmin${NMIN}_${OUTPUT_RES}m"
 OUTPUT_GRID=${OUTPUT_ROOT}.grd
 
 [ ! -f "${PROCESSED_DATALIST}" ] && mbdatalist -F-1 -I ${DATALIST} -Z
 
-mbareaclean -F-1 -I ${DATALIST} -S${BINSIZE} -D${THRESHOLD}/${NMIN} -R${REGION} -V
+mbareaclean -F-1 -I ${DATALIST} -S${BINSIZE} -D${THRESHOLD}/${NMIN} -R${REGION} -B -V
 mbprocess -C8 -F-1 -I ${DATALIST} 
-mbgrid -A2 -E${BINSIZE}/${BINSIZE}/meters! -F1 -I ${PROCESSED_DATALIST} -R${REGION} -V -O "${OUTPUT_ROOT}"
+mbgrid -A2 -E${OUTPUT_RES}/${OUTPUT_RES}/meters! -F1 -I ${PROCESSED_DATALIST} -R${REGION} -M -V -O "${OUTPUT_ROOT}"
 #mbgrdviz -I ${OUTPUT_GRID}
 	
 # Use this section if you want to inspect the results in GRASS GIS.
 echo -e "\nReprojecting with gdalwarp...\n"
-gdalwarp -s_srs "EPSG:4326" -t_srs "$(g.proj -jf)" -of "GTiff" -tr ${BINSIZE} ${BINSIZE} -wm 30000000000 -r bilinear -multi -wo NUM_THREADS=ALL_CPUS ${OUTPUT_GRID} ${OUTPUT_ROOT}.tif
+gdalwarp -s_srs "EPSG:4326" -t_srs "$(g.proj -jf)" -of "GTiff" -tr ${OUTPUT_RES} ${OUTPUT_RES} -wm 30000000000 -r bilinear -multi -wo NUM_THREADS=ALL_CPUS ${OUTPUT_GRID} ${OUTPUT_ROOT}.tif
 echo -e "\nImporting grid into Grass...\n"		
 r.in.gdal input=${OUTPUT_ROOT}.tif mem=28000 output=${OUTPUT_ROOT} -o --o --v
 r.colors map=${OUTPUT_ROOT} color=bof_unb --q
+r.csr input=${OUTPUT_ROOT}
 
-#Cleanup
-[ "$?" -eq 0 ] && rm ${OUTPUT_ROOT}.tif && rm ${OUTPUT_ROOT}.grd.cmd && rm ${OUTPUT_ROOT}.mb-1
-
-# This the non-Grass Cleanup routine
-#[[ "$?" -eq 0 ]] && rm ${OUTPUT_ROOT}.grd.cmd && rm ${OUTPUT_ROOT}.mb-1
 
 exit 0

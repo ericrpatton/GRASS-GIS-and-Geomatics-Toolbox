@@ -26,9 +26,15 @@ SCRIPT=$(basename $0)
 
 if [ "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
 	echo -e "\nusage: $SCRIPT: verifies the integrity and calculates the SHA256 cryptographic hash of lzipped files in the current directory, and writes these results to the screen and a report.  \n"
-	exit 1
+	exit 0
 fi
 
+INPUT=$1
+
+# If no argument was given for the input file, use a wildcard pattern to run
+# this script on all .lz files in the current directory.
+
+[[ -z ${INPUT} ]] && INPUT="*.lz" 
 
 # What to do in case of user break:
 exitprocedure()
@@ -50,20 +56,21 @@ echo -e "LZIP FILE INTEGRITY REPORT:\n" >> integrity_check_and_sha256sum_report.
 echo -e "\nChecking integrity of lzip files in current directory...\n"
 sleep 2
 
-parallel lzip -tv 2>&1 ::: *.lz | tee -a integrity_check_and_sha256sum_report.txt
+parallel lzip -tv 2>&1 ::: ${INPUT} | tee -a integrity_check_and_sha256sum_report.txt
 
 echo -e "\n----------------------------------------------------------------------------------------" >> integrity_check_and_sha256sum_report.txt
 echo -e "\nSHA256SUMs:\n" >> integrity_check_and_sha256sum_report.txt
 echo -e "Verify with: 'sha256sum -c --ignore-missing integrity_check_and_sha256sum_report.txt'\n" >> integrity_check_and_sha256sum_report.txt
 echo -e "\nCalculating sha256 checksums...\n"
-parallel sha256sum 2>&1 ::: *.lz | tee -a integrity_check_and_sha256sum_report.txt && echo -e "\nDone."
+
+parallel sha256sum 2>&1 ::: ${INPUT} | tee -a integrity_check_and_sha256sum_report.txt && echo -e "\nDone."
 
 echo -e "\n\nVerifying checksums:" | tee -a integrity_check_and_sha256sum_report.txt 
 echo -e "Date: $(date '+%c')\n" | tee -a integrity_check_and_sha256sum_report.txt
 echo -e "----------------------------------------------------------------------------------------\n" >> integrity_check_and_sha256sum_report.txt
+
 sha256sum -c --ignore-missing  integrity_check_and_sha256sum_report.txt 2>/dev/null | tee -a temp_check.txt
 cat temp_check.txt >> integrity_check_and_sha256sum_report.txt && rm temp_check.txt && echo -e "\nDone."
 echo -e "\n========================================================================================\n" >> integrity_check_and_sha256sum_report.txt
-
 
 exit 0
