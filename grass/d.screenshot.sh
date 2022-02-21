@@ -49,6 +49,7 @@ if [[ $MONITOR_CHECK != "wx0" ]] ; then
 	d.mon start=wx0 
 fi
 
-d.rast map=${INPUT}
+echo -e "\nExporting screenshot of raster map ${INPUT}..."
+d.rast map=${INPUT} --q
 
 exit 0
