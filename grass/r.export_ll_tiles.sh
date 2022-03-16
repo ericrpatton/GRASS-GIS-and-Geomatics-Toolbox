@@ -27,8 +27,8 @@ fi
 SCRIPT=$(basename $0)
 
 if [ "$#" -ne 2 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
-	echo -e "\nusage: $SCRIPT r.export_ll_tiles.sh rastername resolution \n"
-	exit 1
+	echo -e "\nusage: $SCRIPT rastername resolution \n"
+	exit 0
 fi
 
 # What to do in case of user break:
@@ -76,7 +76,4 @@ for MAP in $(g.list type=vect pattern=${VECT_INPUT}_LL_tiles_cat*) ; do
 	r.out.demgeotiff ${MAP}
 done
 	
-parallel --eta -j8 gzip -fv ::: ${VECT_INPUT}_LL_tiles_cat*.tif
-rm ${VECT_INPUT}_LL_tiles_cat*.xml
-
 exit 0
