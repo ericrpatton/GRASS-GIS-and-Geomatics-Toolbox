@@ -3,7 +3,7 @@
 # append_rast_res_metres.sh: A simple script to append the input raster's
 # resolution units (metres) into the raster filename.
 #
-# Last modified: September 29, 2020
+# Last modified: January 4, 2023
 #
 #############################################################################
 
@@ -12,7 +12,7 @@ if  [ -z "$GISBASE" ] ; then
     exit 1
 fi
 
-SCRIPT=`basename $0`
+SCRIPT=$(basename "$0")
 
 # Setup clean exit for Ctrl-C or similar breaks.
 trap 'echo -e "\n\nUser break or similar caught; Exiting.\n" ; exit 1' 2 3 15
@@ -25,6 +25,6 @@ fi
 INPUT=$1
 OUTPUT="${INPUT}m"
 
-g.rename rast=${INPUT},${OUTPUT}
+g.rename rast="${INPUT}","${OUTPUT}"
 
 exit 0
