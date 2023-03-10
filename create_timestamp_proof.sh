@@ -7,9 +7,8 @@
 # AUTHOR:   	 Eric Patton, Geological Survey of Canada (Atlantic)
 # 		         <Eric dot Patton at Canada dot ca>
 #
-# PURPOSE:       To compress a file using lzip, create a SH256 checksum of that
-# file, sign the checksum with my GPG key, and create an OpenTimestamp proof of
-# the GPG-signed SHA256 checksum.
+# PURPOSE:       To sign an input file with my GPG key, and create an
+# OpenTimestamp proof of the GPG-signed file.
 #
 # COPYRIGHT:     (c) 2022 by Eric Patton
 #
@@ -17,7 +16,7 @@
 #                License (>=v3). 
 # 
 # Created:		  January 27, 2022
-# Last Modified:  January 27, 2022
+# Last Modified:  November 4, 2022
 #
 #############################################################################
 
@@ -26,7 +25,7 @@ SCRIPT=$(basename $0)
 INPUT=$1
 
 if [ "$#" -ne 1 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
-	echo -e "\nTimestamps a compressed, GPG-signed checksum of a file using OpenTimestamps."
+	echo -e "\nTimestamps a GPG-signed file using OpenTimestamps."
 	echo -e "usage: $SCRIPT filename\n"
 	exit 1
 fi
@@ -52,11 +51,9 @@ fi
 
 # DO IT
 
-lzip -vv ${INPUT}
-sha256sum ${INPUT}.lz > ${INPUT}.lz.sha256
-gpg -ab ${INPUT}.lz.sha256 
-ots stamp ${INPUT}.lz.sha256.asc
+gpg -ab ${INPUT} 
+ots stamp ${INPUT}.asc
 
-[[ -f "${INPUT}.lz.sha256.asc.ots" ]] ; echo -e "\nDone."
+[[ -f "${INPUT}.asc.ots" ]] ; echo -e "\nDone."
 
 exit 0
