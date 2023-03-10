@@ -1,6 +1,6 @@
 # GRASS-GIS-and-Geomatics-Toolbox
 
-This is a collection of GIS tools and bash scripts I've been working on for the past 17 years at my job as a Marine Geoscience Technologist at Natural Resources Canada. Not all of them are my scripts - some are scripts and tools I've collected from other GIS users that have proved useful to me.
+This is a collection of GIS tools and bash scripts I've been working on for the past 18 years at my job as a Marine Geoscience Technologist at Natural Resources Canada. Not all of them are my scripts - some are scripts and tools I've collected from other GIS users that have proved useful to me.
 
 Some are in various states of completion (although most, in fact, work); they are mostly centered on using GRASS GIS and other open source geomatics tools such as GDAL/OGR, Generic Mapping Tools, GEOS, and MB-System to solve various data formatting, visualization, and geoprocessing tasks I've encountered over the years, particularly in the context of seafloor swath bathymetry data processing. 
 
