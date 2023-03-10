@@ -25,15 +25,29 @@ fi
 eval $(g.region -pg)
 : ${w?} ${e?} ${s?} ${n?}
 
+
 # Use eval to capture Grass environment vaiables like the current MAPSET.
 eval $(g.gisenv)
 : ${MAPSET?}
+
 
 # Example for checking whether a Grass raster exists or not
 eval `g.findfile element=cell mapset=$MAPSET file=${SHADE}` 
 : ${file?}
 
 SHADE_CHECK=$file
+
+
+# Parse a GMT-style REGION string into its components
+WEST=$(echo $REGION | cut -d'/' -f1)
+EAST=$(echo $REGION | cut -d'/' -f2)
+SOUTH=$(echo $REGION | cut -d'/' -f3)
+NORTH=$(echo $REGION | cut -d'/' -f4)
+
+
+# Find the absolte value of the west-east extent and the north-south extent
+WEST_EAST_DIFF=$(abs_value.sh $(echo "$WEST - $EAST" | bc -l))
+NORTH_SOUTH_DIFF=$(abs_value.sh $(echo "$NORTH - $SOUTH" | bc -l))
 
 
 ### MB-SYSTEM ################################################################ 
@@ -61,6 +75,7 @@ date '+%F__%H-%M-%S'
 # skipping directories that don't contain any matches:
 
 rsync -ahrvP --dry-run --prune-empty-dirs --include='*.colr' --include='*/' --exclude='*' . destination_dir
+
 
 ### TIMER ### 
 echo -e "\nWaiting ${MINUTES} minutes before re-executing..."
@@ -102,6 +117,7 @@ read -p "Enter the time threshold in seconds: " THRESHOLD
 
 esac
 
+
 ### READING a text file into an awk array in a BEGIN statement:
 
 BEGIN { 
@@ -118,8 +134,34 @@ BEGIN {
 	close ("Amundsen_2021_SEGY_times.txt") 
 }
 
+
+### DUMPING THE CONTENTS OF AN AWK ARRAY USING AN END STATEMENT
+
+END { print CRUISE " " STREAK
+
+for (i=0; i<STREAK; i++) {
+	print TIMESTAMPS[i], " "LATITUDE[i], " "LONGITUDE[i]
+}
+
+
 ### CREATING DATABASE INDICES FOR LOCATE ###
 # Substite for the actual drive name below
 
 updatedb -l 0 -o EP_ARCH_09.db -U . 
 
+
+### GETTING THE ABSOLUTE VALUE OF NUMBER USING AWK ###
+
+echo "-3" | awk 'function abs(v) {v += 0; return v < 0 ? -v : v} {print abs($1)}'
+
+
+### PROMPTING THE USER FOR A RESPONSE ON COMMAND LINE BEFORE CONTINUING ***
+
+while true; do
+    read -p "Do you wish to continue this script? " yn
+    case $yn in
+        [Yy]* ) ;;
+        [Nn]* ) exit;;
+        * ) echo "Please answer yes or no.";;
+    esac
+done
