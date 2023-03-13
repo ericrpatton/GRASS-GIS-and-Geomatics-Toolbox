@@ -38,7 +38,7 @@ RES=$2
 
 FORMAT_ID=`mbformat -I $INPUT -K | awk '{print $2}'`	
 
-mblist -F${FORMAT_ID} -I ${INPUT} -D2 | awk '{print $1, $2, -$3}' | proj `g.proj -jf` | pv | awk '{print $1, $2, $3}' > ${OUTPUT_XYZ}
+mblist -F${FORMAT_ID} -I ${INPUT} -D2 | awk '{print $1, $2, -$3}' | proj $(g.proj -jf | sed 's/+type=crs//') | pv | awk '{print $1, $2, $3}' > ${OUTPUT_XYZ}
 
 import_xyz.sh ${OUTPUT_XYZ} ${RES}
 r.colors map=${OUTPUT}_${RES}m color=bof_unb --v
