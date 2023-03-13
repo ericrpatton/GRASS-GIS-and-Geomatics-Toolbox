@@ -42,7 +42,7 @@ DATALIST=$1
 OUTPUT_ROOT="cleaning_grid_$(date '+%F__%H-%M-%S')"
 RES=$2
 
-[[ -z ${RES} ]] && RES=100
+[[ -z ${RES} ]] && RES=30
 
 # Use EPSG World Mercator projection; note: The format of the EPSG code is wrong
 # in the mbgrid manual page - use as it is below.
