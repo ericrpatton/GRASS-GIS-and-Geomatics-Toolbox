@@ -11,14 +11,14 @@
 # datalist. The module will split the gridding region into a number of smaller
 # tiles ifthe entire size exceeds some threshold value.
 #		 
-# COPYRIGHT:     (C) 2009-2021 by Eric Patton
+# COPYRIGHT:     (C) 2009-2023 by Eric Patton
 #
 #                This program is free software under the GNU General Public
 #                License (>=v3). Read the file COPYING that comes with
 #                GRASS_out"
 #                for details.
 # 
-# Last Modified: February 19, 2021
+# Last Modified: January 26, 2023
 #
 #############################################################################
 #
@@ -37,8 +37,8 @@
 #%END
 
 #%flag
-#% key: s 
-#% description: Skip spline interpolation of null grid cells.
+#% key: i 
+#% description: Use spline interpolation of null grid cells.
 #%END
 
 #%option 
@@ -47,6 +47,13 @@
 #% required: yes
 #% answer: datalist.mb-1
 #% description: Input MB-System datalist
+#%END
+
+#%option 
+#% key: output_root
+#% type: string
+#% required: yes
+#% description: Output basename for working files
 #%END
 
 #%option 
@@ -73,23 +80,23 @@
 #% description: mbgrid datatype (1=bathy; 2=topography; 3=amplitude; 4=sidescan)
 #%END
 
-if  [ -z "$GISBASE" ] ; then
+if  [[ -z "$GISBASE" ]] ; then
     echo "You must be in GRASS GIS to run this program."
     exit 1
 fi
 
-if [ "$1" != "@ARGS_PARSED@" ] ; then
+if [[ "$1" != "@ARGS_PARSED@" ]] ; then
      exec g.parser "$0" "$@"
 fi
 
 DATALIST=${GIS_OPT_datalist}
 REGION=${GIS_OPT_region}
 RES=${GIS_OPT_resolution}
+OUTPUT_ROOT="${GIS_OPT_output_root}_${RES}m"
 DATATYPE=${GIS_OPT_datatype}
-OUTPUT_ROOT="$(basename $DATALIST .mb-1)_${RES}m"
-
 SCRIPT=$(basename $0)
-PAUSE=0.75
+PAUSE=3
+SHORT_PAUSE=1.5
 
 # The maximum number of raster rows and columns allowed before the input
 # datalist region is split into equal-sized chunks. This is an arbitrary
@@ -98,19 +105,19 @@ PAUSE=0.75
 MAXSIZE=400000000 # Discovered through trial and error on this machine
 
 # Check if we have awk.
-if [ ! -x $(which awk) ] ; then
+if [[ ! -x $(which awk) ]] ; then
     echo "$SCRIPT: awk not found, please install awk or gawk first" 2>&1
     exit 1
 fi
 
 # Check if we have bc.
-if [ ! -x $(which bc) ] ; then
+if [[ ! -x $(which bc) ]] ; then
     echo "$SCRIPT: bc not found, please install bc first." 2>&1
     exit 1
 fi
 
 # Check if we have v.in.boundingbox.
-if [ ! -x $(which v.in.boundingbox) ] ; then
+if [[ ! -x $(which v.in.boundingbox) ]] ; then
     echo "$SCRIPT: v.in.boundingbox not found, please install v.in.boundingbox first." 2>&1
 	echo " Download link: https://github.com/ericrpatton/GRASS-GIS-and-Geomatics-Toolbox" 
     exit 1
@@ -120,8 +127,12 @@ fi
 unset LC_ALL
 export LC_NUMERIC=C
 
+# Capture environment variables
+eval $(g.gisenv)
+: ${GISDBASE?} ${LOCATION_NAME?} ${MAPSET?}
+
 # Setup clean exit for Ctrl-C or similar breaks.
-# TO-DO: Write a function to remove the raste and vector bounding boxes if thㄟs
+# TO-DO: Write a function to remove the raster and vector boundingboxes if this
 # script is interrupted.
 trap 'echo -e "\n\nUser break or similar caught! Exiting.\n" ; exit 1' 2 3 15
 
@@ -130,91 +141,187 @@ VECTOR_OUTPUT_ROOT=$(echo $OUTPUT_ROOT | sed 's/\./_/g')
 VECT_BOUNDINGBOX="${VECTOR_OUTPUT_ROOT}_bounds"
 RASTERBOUNDS="${VECT_BOUNDINGBOX}_rast"
 
-# Use eval to capture Grass environment vaiables like the current MAPSET.
-eval $(g.gisenv)
-: ${MAPSET?}
+# Define functions
 
-# Check whether the output vector name already exists in Grass
-eval `g.findfile element=vector mapset=${MAPSET} file=${VECT_BOUNDINGBOX}` 
-: ${file?}
+# Create the vector and raster boundingbox files using either the region given by
+# the user, or the maximum bounds of the input datalist, whichever was given.
 
-VECTOR_EXISTS_CHECK=$file
+create_boundingboxes() {
 
-if [ -n "$VECTOR_EXISTS_CHECK" ] ; then
-	echo -e "\nError: $SCRIPT: Output vector $VECT_BOUNDINGBOX already exists."
-	exit 1
-fi
+	if [[ "$REGION" == "INFO" || "$REGION" == "info" ]] ; then 
+	
+		# Check if we have mb.getinforegion
+		if [[ ! -x $(which mb.getinforegion) ]] ; then
+		    echo "$SCRIPT: mb.getinforegion not found, please install mb.getinforegion first." 2>&1
+			echo " Download link: https://github.com/ericrpatton/GRASS-GIS-and-Geomatics-Toolbox" 
+		    exit 1
+		fi
+	
+		# v.in.boundingbox uses mb.getinforegion to capture maximum gridding region
+		# of all files in the input datalist.  The -i flag checks to see if there is
+		# a file in the current directory named mbinfo.txt (or $DATALIST_mbinfo.txt)
+		# with the data extent already calculated; if so, it is used as the REGION.
+		# If there isn't, mb.getinforegion is called to generate it.  The -r flag
+		# generates a raster of the incoming vector boundingbox. The raster
+		# boundingbox is split by r.fragment into strips if the full region extent
+		# is bigger than $MAXSIZE.
+		echo -e "\nUsing mb.getinforegion to extract bounds of the datalist extent. Please standby...\n"
+		sleep ${SHORT_PAUSE}	
 
-# Check whether the output raster boundingbox name already exists in Grass
-eval `g.findfile element=cell mapset=${MAPSET} file=${VECT_BOUNDINGBOX}` 
-: ${file?}
+		v.in.boundingbox -ir boundingbox=${VECT_BOUNDINGBOX} datalist=${DATALIST} res=${RES} --o
 
-RASTER_EXISTS_CHECK=$file
+		echo -e "\nFound the following region through mb.getinforegion:\n"
+		g.region rast=${RASTERBOUNDS} res=${RES} -ap
+		sleep ${SHORT_PAUSE}	
+	
+	else
+		# Use the region provided by the user on the command line.
+	
+		echo -e "\nUsing user-provided region. Please standby...\n"
+		sleep ${SHORT_PAUSE}	
 
-if [ -n "$RASTER_EXISTS_CHECK" ] ; then
-	echo -e "\nError: $SCRIPT: Output raster ${VECT_BOUNDINGBOX}_rast already exists."
-	exit 1
-fi
+		MAX_WEST=$(echo $REGION | cut -d'/' -f1)
+		MAX_EAST=$(echo $REGION | cut -d'/' -f2)
+		MAX_SOUTH=$(echo $REGION | cut -d'/' -f3)
+		MAX_NORTH=$(echo $REGION | cut -d'/' -f4)
+	
+		echo "$MAX_WEST $MAX_SOUTH" | proj $(g.proj -jf | sed 's/+type=crs//') | awk '{print $1, $2}' > coords.txt
+		echo "$MAX_WEST $MAX_NORTH" | proj $(g.proj -jf | sed 's/+type=crs//') | awk '{print $1, $2}' >> coords.txt
+		echo "$MAX_EAST $MAX_NORTH" | proj $(g.proj -jf | sed 's/+type=crs//') | awk '{print $1, $2}' >> coords.txt
+		echo "$MAX_EAST $MAX_SOUTH" | proj $(g.proj -jf | sed 's/+type=crs//') | awk '{print $1, $2}' >> coords.txt    
+	                                                                             
+		# In most projections, the westing value is lower than the easting.  The -r
+		# flag in the sort command reverses the sorting, placing the max value in
+		# the first row.
+		#	WESTING=$(sort -n -k1 coords.txt | awk 'NR == 1 {print $1}')
+		#	EASTING=$(sort -n -r -k1 coords.txt | awk 'NR == 1 {print $1}')
+		#	SOUTHING=$(sort -n -k2 coords.txt | awk 'NR == 1 {print $2}')
+		#	NORTHING=$(sort -n -r -k2 coords.txt | awk 'NR == 1 {print $2}')
+		
+		WESTING=$(awk 'NR == 1 {print $1}' coords.txt)
+		EASTING=$(awk 'NR == 3 {print $1}' coords.txt)
+		SOUTHING=$(awk 'NR == 4 {print $2}' coords.txt)
+		NORTHING=$(awk 'NR == 2 {print $2}' coords.txt)
+	
+		g.region w=${WESTING} e=${EASTING} s=${SOUTHING} n=${NORTHING} res=${RES} -ap
+		echo "" ; sleep $SHORT_PAUSE
+		
+		# The -g flag in the command below will use the region set by g.region in
+		# the line above, and the -r flag will create a raster from the vector
+		# bounding box.  v.in.boundingbox will create a raster with the default name
+		# of $RASTERBOUNDS, that is, $VECT_BOUNDINGBOX_rast.
+		v.in.boundingbox -gr boundingbox=${VECT_BOUNDINGBOX} datalist=${DATALIST} --o
 
-if [ "$REGION" = "INFO" -o "$REGION" = "info" ] ; then 
-
-	# Check if we have mb.getinforegion
-	if [ ! -x $(which mb.getinforegion) ] ; then
-	    echo "$SCRIPT: mb.getinforegion not found, please install mb.getinforegion first." 2>&1
-		echo " Download link: https://github.com/ericrpatton/GRASS-GIS-and-Geomatics-Toolbox" 
-	    exit 1
 	fi
 
-	# v.in.boundingbox uses mb.getinforegion to capture maximum gridding region
-	# of all files in the input datalist.  The -i flag checks to see if there is
-	# a file in the current directory named mbinfo.txt (or $DATALIST_mbinfo.txt)
-	# with the data extent already calculated; if so, it is used as the REGION.
-	# If there isn't, mb.getinforegion is called to generate it.  The -r flag
-	# generates a raster of the incoming vector boundingbox. The raster
-	# boundingbox is split by r.fragment into strips if the full region extent
-	# is bigger than $MAXSIZE.
-	echo -e "\nUsing mb.getinforegion to extract bounds of the datalist extent. Please standby...\n"
+	#Store input datalist SHA1 hash in the raster and vector metadata comments
+	v.support map=${VECT_BOUNDINGBOX} comment="Input datalist SHA1 hash = $LIST_HASH"
+	r.support map=${RASTERBOUNDS} history="SHA1=$LIST_HASH"
+	echo -e "\nUpdated vector and raster metadata."
+	sleep ${SHORT_PAUSE}
 
-	v.in.boundingbox -ir boundingbox=${VECT_BOUNDINGBOX} datalist=${DATALIST} res=${RES}
-	echo -e "\nFound the following region through mb.getinforegion:\n"
-	g.region rast=${RASTERBOUNDS} res=${RES} -ap
-	echo ""
+}
+
+# Check if the vector boundingbox already exists (from a previous invocation of
+# mb.gridtiles or mb.bcksct_tiles.sh) by comparing the SHA1 hash of the input
+# datalist that was used to create the vector; the hash is stored in the
+# v.info comments field using v.support.
+
+eval $(g.findfile element=vector mapset=${MAPSET} file=${VECT_BOUNDINGBOX})
+: ${file?}
+		
+VECT_BOUNDINGBOX_CHECK=${file}
+
+# The SHA1 hash of the input datalist - will be used below.
+LIST_HASH=$(sha1sum ${DATALIST} | awk '{print $1}')
+
+if [[ -n "${VECT_BOUNDINGBOX_CHECK}" ]] ; then
+	# Since VECT_BOUNDINGBOX exists, get the SHA1 hash stored in its metadata
+	# comments, then compare that string to the hash of the input datalist to
+	# make sure they are identical, and hence have the same datalist members
+	# (and geographic extents).
+	echo -e "\nVector boundingbox ${VECT_BOUNDINGBOX} already exists in mapset; verifying its hash..."
 	sleep ${PAUSE}
+
+	VECT_HASH=$(v.info -e ${VECT_BOUNDINGBOX} | grep comment | cut -d'=' -f3 | awk '{print $1}')
+
+	if [[ ${VECT_HASH} == ${LIST_HASH} ]] ; then
+	
+		echo -e "\nVector boundingbox hash matches the datalist hash."
+		echo "Setting computational region to this boundingbox."
+		sleep ${PAUSE}
+
+		# The hashes match, so the region extents are good; set the region
+		# explicity with g.region from the vector boundingbox, and then
+		# check whether we have a raster version of the vector boundingbox.
+
+		g.region vect=${VECT_BOUNDINGBOX} res=${RES} -a
+		
+		eval $(g.findfile element=cell mapset=${MAPSET} file=${RASTERBOUNDS}) 
+		: ${file?}
+	
+		RASTER_BOUNDINGBOX_CHECK=${file}
+		
+		if [[ -n ${RASTER_BOUNDINGBOX_CHECK} ]] ; then
+						
+			echo -e "\nFound a matching raster version of the input vector boundingbox."
+			sleep ${PAUSE}
+
+			RAST_HASH=$(r.info -e ${RASTERBOUNDS} | grep comments | cut -d'=' -f10 | awk '{print $1}' | sed 's/"$//')
+
+			if [[ ${RAST_HASH} == ${LIST_HASH} ]] ; then
+				echo "The rasterbounds's hash also matchs the datalist hash."
+				sleep ${PAUSE}
+
+			else
+				echo "The rasterbounds file ${RASTERBOUNDS} has a hash mismatch; re-creating it..."
+				v.to.rast input=${VECT_BOUNDINGBOX} output=${RASTERBOUNDS} use=val val=1 mem=20000  --v --o
+
+				# And store the hash of the input datalist in the r.support comments
+				r.support map=${RASTERBOUNDS} history="SHA1=$LIST_HASH"
+				echo -e "\nUpdated raster metadata."
+				sleep ${SHORT_PAUSE}
+				
+			fi
+
+		else
+			
+			echo -e "\nRaster version of the vector boundingbox missing;"
+			echo -e "Rasterizing input vector boundingbox...\n"
+			sleep ${SHORT_PAUSE}
+
+			v.to.rast input=${VECT_BOUNDINGBOX} output=${RASTERBOUNDS} use=val val=1 mem=20000  --v --o
+
+			# And store the hash of the input datalist in the r.support comments
+			r.support map=${RASTERBOUNDS} history="SHA1=$LIST_HASH"
+			echo -e "\nUpdated raster metadata."
+			sleep ${SHORT_PAUSE}
+			
+		fi
+
+	else 
+		# The vector file was found, but the hash mismatched, so we need to
+		# re-create both vector and raster boundingboxes.
+		
+		echo -e "\nVector boundingbox found, but its hash mismatched that of the datalist."
+		echo "We need to re-create the vector and raster boundingboxes..."
+		sleep ${PAUSE}
+
+		create_boundingboxes
+
+	fi
+			
+
 else
-	# Use the region provided by the user on the command line.
 
-	echo -e "\nUsing user-provided region. Please standby...\n"
-	MAX_WEST=$(echo $REGION | cut -d'/' -f1)
-	MAX_EAST=$(echo $REGION | cut -d'/' -f2)
-	MAX_SOUTH=$(echo $REGION | cut -d'/' -f3)
-	MAX_NORTH=$(echo $REGION | cut -d'/' -f4)
+	# The vector boundingbox check failed, so both it and the raster boundingbox
+	# need to be created. 
 
-	echo "$MAX_WEST $MAX_SOUTH" | proj $(g.proj -jf) | awk '{print $1, $2}' > coords.txt
-	echo "$MAX_WEST $MAX_NORTH" | proj $(g.proj -jf) | awk '{print $1, $2}' >> coords.txt
-	echo "$MAX_EAST $MAX_NORTH" | proj $(g.proj -jf) | awk '{print $1, $2}' >> coords.txt
-	echo "$MAX_EAST $MAX_SOUTH" | proj $(g.proj -jf) | awk '{print $1, $2}' >> coords.txt    
-                                                                             
-	# In most projections, the westing value is lower than the easting.  The -r
-	# flag in the sort command reverses the sorting, placing the max value in
-	# the first row.
-#	WESTING=$(sort -n -k1 coords.txt | awk 'NR == 1 {print $1}')
-#	EASTING=$(sort -n -r -k1 coords.txt | awk 'NR == 1 {print $1}')
-#	SOUTHING=$(sort -n -k2 coords.txt | awk 'NR == 1 {print $2}')
-#	NORTHING=$(sort -n -r -k2 coords.txt | awk 'NR == 1 {print $2}')
-	
-	WESTING=$(awk 'NR == 1 {print $1}' coords.txt)
-	EASTING=$(awk 'NR == 3 {print $1}' coords.txt)
-	SOUTHING=$(awk 'NR == 4 {print $2}' coords.txt)
-	NORTHING=$(awk 'NR == 2 {print $2}' coords.txt)
+	echo -e "\nNo pre-existing vector boundingbox found. Creating it now..."
+	sleep ${SHORT_PAUSE}
 
-	g.region w=${WESTING} e=${EASTING} s=${SOUTHING} n=${NORTHING} res=${RES} -ap
-	echo "" ; sleep $PAUSE
-	
-	# The -g flag in the command below will use the region set by g.region
-	# above, and the -r flag will create a raster from the vector bounding box.
-	# v.in.boundingbox will create a raster with the default name of
-	# $RASTERBOUNDS, that is, $VECT_BOUNDINGBOX_rast.
-	v.in.boundingbox -gr boundingbox=${VECT_BOUNDINGBOX} datalist=${DATALIST} 
+	create_boundingboxes
+
 fi
 
 # If the -c flag is passed, run mbclean on the datalist using default settings.
@@ -230,32 +337,34 @@ fi
 # -W is the geographic region filter
 # -X the value given zaps this number of beams from the port and starbaord edges
 # -Z is the 0 lat/long filter; probably redundant with -W
-if  [ ${GIS_FLAG_c} -eq 1 ] ; then
+if  [[ ${GIS_FLAG_c} -eq 1 ]] ; then
 	echo -e "\nThe -c flag has been passed; running mbclean..."
-	sleep ${PAUSE}
+	sleep ${SHORT_PAUSE}
 	mbclean -F-1 -I ${DATALIST} -C65/2 -W-180/-30/30/89 -P0.5/30 -D0.01/0.2 -A4 -V
 fi
 
-if  [ ${GIS_FLAG_p} -eq 1 ] ; then
+if  [[ ${GIS_FLAG_p} -eq 1 ]] ; then
 	echo -e "\nThe -p flag has been passed; running mbprocess..."
-	sleep ${PAUSE}
-	mbprocess -F-1 -I ${DATALIST} -C8
+	sleep ${SHORT_PAUSE}
+	mbprocess -F-1 -I ${DATALIST} -C16
 fi
 
 echo ""
+
+# We are going to be using the processed data for the output grid; make sure
+# that the processed datalist exists, and point the DATALIST vairable to it.
+
 mbdatalist -F-1 -I ${DATALIST} -Z
 DATALIST="$(basename $DATALIST .mb-1)p.mb-1"
-OUTPUT_ROOT="$(basename $DATALIST .mb-1)_${RES}m"
 echo -e "\nThe datalist is now $DATALIST."
-echo "The output filename root has been updated to $OUTPUT_ROOT."
-sleep ${PAUSE}
+sleep ${SHORT_PAUSE}
 
 ROWS=$(g.region -pg | grep rows | cut -d'=' -f2)
 COLS=$(g.region -pg | grep cols | cut -d'=' -f2)
 CELLS=$(g.region -pg | grep cells | cut -d'=' -f2)
-CELLS_INT=`echo "$CELLS" | awk '{printf "%.0f", $1}'`
-ROWS_INT=`echo "$ROWS" | awk '{printf "%.0f", $1}'`
-COLS_INT=`echo "$COLS" | awk '{printf "%.0f", $1}'`
+CELLS_INT=$(echo "$CELLS" | awk '{printf "%.0f", $1}')
+ROWS_INT=$(echo "$ROWS" | awk '{printf "%.0f", $1}')
+COLS_INT=$(echo "$COLS" | awk '{printf "%.0f", $1}')
 
 # Check to see if the number of cells in the region is greater than our
 # threshold value. If so, we need to partition the region into sections so
@@ -267,7 +376,7 @@ COLS_INT=`echo "$COLS" | awk '{printf "%.0f", $1}'`
 # MAXSIZE threshold; this will be the value of our STRIP_WIDTH_CELLS.
 
 
-if [ "$CELLS_INT" -gt "$MAXSIZE" ] ; then
+if [[ ${CELLS_INT} -gt ${MAXSIZE} ]] ; then
 	
 	# Initialize a few variables prior to beginning the WHILE loop..."
 	COLS_WIDTH_CHECK=$COLS
@@ -275,10 +384,10 @@ if [ "$CELLS_INT" -gt "$MAXSIZE" ] ; then
 	NUMBER_OF_FRAGMENT_COLS=1
 	SIZE_CHECK=$CELLS_INT
 
-	while [ $SIZE_CHECK -gt $MAXSIZE ] ; do
+	while [[ ${SIZE_CHECK} -gt ${MAXSIZE} ]] ; do
 
 		echo -e "\nThe processing region is $SIZE_CHECK cells, which exceeds limit of $MAXSIZE cells."
-		sleep $PAUSE
+		sleep $SHORT_PAUSE
 
 		# We halve the region, and re-check to see if it is greater than $MAXSIZE 
 		COLS_WIDTH_CHECK=$(echo "scale=2 ; $COLS_WIDTH_CHECK / 2" | bc -l)
@@ -290,12 +399,15 @@ if [ "$CELLS_INT" -gt "$MAXSIZE" ] ; then
 		echo "NUMBER_OF_HALVINGS is now $NUMBER_OF_HALVINGS."
 		echo "NUMBER_OF_FRAGMENT_COLS is now $NUMBER_OF_FRAGMENT_COLS."
 		echo "The SIZE_CHECK is now $SIZE_CHECK."
-		sleep $PAUSE
+		sleep $SHORT_PAUSE
 
 	done
 	
-	echo "We will need to split the region of $DATALIST into $NUMBER_OF_FRAGMENT_COLS strips of size $SIZE_CHECK."
-	sleep $PAUSE
+	echo -e "\nWe will need to split the region of $DATALIST into $NUMBER_OF_FRAGMENT_COLS strips of size $SIZE_CHECK."
+	sleep $SHORT_PAUSE
+
+	### TO-DO: CHeck the g.findfile section below; I'm not sure it actually
+	#works, or even saveѕ any time. 
 
 	# Check to see if the input datalist has already been split into fragments
 	# or not. If so, use those sections instead of regenerating them each time.
@@ -323,7 +435,7 @@ if [ "$CELLS_INT" -gt "$MAXSIZE" ] ; then
 		COUNTER=$(($COUNTER + 1))
 
 		echo -e "\n======= GRIDDING BATHYMETRY WITH MB-GRID ========="
-		sleep $PAUSE
+		sleep $SHORT_PAUSE
 		echo -e "\nGridding section $COUNTER of $NUMBER_OF_FRAGMENT_COLS...please standby."
 
 		# We are creating a lat-long grid here; The script can be more useful if
@@ -331,24 +443,27 @@ if [ "$CELLS_INT" -gt "$MAXSIZE" ] ; then
 		# (I used to hard-code a UTM projecton, which wasn't useful in LCC Grass
 		# projects). The mbgrid default output is a netCDF grid (.grd).
 
-		if [ $GIS_FLAG_s -eq 1 ] ; then
-			mbgrid -A${DATATYPE} -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${CURRENT_WEST_LL}/${CURRENT_EAST_LL}/${CURRENT_SOUTH_LL}/${CURRENT_NORTH_LL} -O ${OUTPUT_ROOT}_${COUNTER} -V
+		if [[ $GIS_FLAG_i -eq 1 ]] ; then
+			echo -e "\nCreating output grid using 2-cell interpolation...\n"
+			sleep $SHORT_PAUSE
+			mbgrid -A${DATATYPE} -C2/1 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${CURRENT_WEST_LL}/${CURRENT_EAST_LL}/${CURRENT_SOUTH_LL}/${CURRENT_NORTH_LL} -O ${OUTPUT_ROOT}_${COUNTER} -V
 
 		else
-			mbgrid -A${DATATYPE} -C2/1 -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${CURRENT_WEST_LL}/${CURRENT_EAST_LL}/${CURRENT_SOUTH_LL}/${CURRENT_NORTH_LL} -O ${OUTPUT_ROOT}_${COUNTER} -V
+			echo -e "\nCreating output grid without interpolation...\n"
+			mbgrid -A${DATATYPE} -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${CURRENT_WEST_LL}/${CURRENT_EAST_LL}/${CURRENT_SOUTH_LL}/${CURRENT_NORTH_LL} -O ${OUTPUT_ROOT}_${COUNTER} -V
 		fi
 				
 		echo -e "\nReprojecting with gdalwarp...\n"
 		gdalwarp -overwrite -s_srs "EPSG:4326" -t_srs "$(g.proj -jf)" -tr ${RES} ${RES} -wm 25000000000 -r bilinear -multi -wo NUM_THREADS=8 -of "GTiff" ${OUTPUT_ROOT}_${COUNTER}.grd ${OUTPUT_ROOT}_${COUNTER}.tif
-		echo "Importing section $COUNTER into Grass..."		
-		r.in.gdal input="${OUTPUT_ROOT}_${COUNTER}.tif" mem=30000 output="${OUTPUT_ROOT}_${COUNTER}_out" -o --o --v
-		sleep $PAUSE
+		echo -e "\nImporting section $COUNTER into Grass..."		
+		r.in.gdal input="${OUTPUT_ROOT}_${COUNTER}.tif" mem=30000 output="${OUTPUT_ROOT}_${COUNTER}_out" -o --o 
+		sleep $SHORT_PAUSE
 	
 	done
 		
 	echo -e "\nPatching sections together...\n"	
 	g.region rast=$(g.list type=rast pattern="${OUTPUT_ROOT}_*_out" sep=,) res=${RES} -a
-	r.patch input=$(g.list type=rast pattern="${OUTPUT_ROOT}_*_out" sep=,) output=${OUTPUT_ROOT} --o --v
+	r.patch input=$(g.list type=rast pattern="${OUTPUT_ROOT}_*_out" sep=,) output=${OUTPUT_ROOT} nprocs=16 mem=20000 --o --v
 	
 	[[ $? -eq 0 ]] && g.remove type=rast pat="${OUTPUT_ROOT}_*_out" -f --q
 
@@ -363,8 +478,8 @@ else
 	MAX_SOUTH_LL=$(g.region -bg rast=${RASTERBOUNDS} --q | grep ll_s | cut -d'=' -f2)
 	MAX_NORTH_LL=$(g.region -bg rast=${RASTERBOUNDS} --q | grep ll_n | cut -d'=' -f2)
 	
-	# If the -s flag is given, skip interpolation of data voids in output raster
-	if [ $GIS_FLAG_s -eq 1 ] ; then
+	# If the -i flag is given, interpolate data voids in output raster
+	if [[ $GIS_FLAG_i -eq 0 ]] ; then
 	
 		mbgrid -A${DATATYPE} -E${RES}/${RES}/meters! -F1 -I ${DATALIST} -R${MAX_WEST_LL}/${MAX_EAST_LL}/${MAX_SOUTH_LL}/${MAX_NORTH_LL} -M -O ${OUTPUT_ROOT} -V
 	else
@@ -373,14 +488,14 @@ else
 	fi
 	
 	echo -e "Reprojecting with gdalwarp...\n"
-	gdalwarp -overwrite -s_srs "EPSG:4326" -t_srs "$(g.proj -jf)" -of "GTiff" -tr ${RES} ${RES} -wm 25000000000 -r bilinear -multi -wo NUM_THREADS=8 ${OUTPUT_ROOT}.grd ${OUTPUT_ROOT}.tif
+	gdalwarp -overwrite -s_srs "EPSG:4326" -t_srs "$(g.proj -jf)" -of "GTiff" -tr ${RES} ${RES} -wm 10000000000 -r bilinear -multi -wo NUM_THREADS=4 ${OUTPUT_ROOT}.grd ${OUTPUT_ROOT}.tif
 	echo -e "\nImporting grid into Grass...\n"		
-	r.in.gdal input=${OUTPUT_ROOT}.tif mem=28000 output=${OUTPUT_ROOT} -o --o --v
+	r.in.gdal input=${OUTPUT_ROOT}.tif mem=10000 output=${OUTPUT_ROOT} -o --o
 	
 fi
 
 r.colors -e map=${OUTPUT_ROOT} color=bof_unb --q
-sleep ${PAUSE} ; r.optimize ${OUTPUT_ROOT}
+sleep ${SHORT_PAUSE} ; r.optimize ${OUTPUT_ROOT}
 r.csr input=${OUTPUT_ROOT}
 
 # Cleanup
