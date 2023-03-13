@@ -22,7 +22,8 @@
 SCRIPT=$(basename $0)
 
 if [ "$#" -ne 1 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
-	echo -e "\nusage: $SCRIPT tarfilename \n"
+	echo -e "\nusage: $SCRIPT tarfilename"
+	echo "Creates an index listing of the given tarball in the current directory."
 	exit 1
 fi
 
