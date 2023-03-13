@@ -44,6 +44,7 @@ trap 'exitprocedure' 2 3 15
 RAST_INPUT=$1
 VECT_INPUT="${RAST_INPUT}_vect"
 RES=$2
+PAUSE=2
 
 # Use eval to capture Grass environment vaiables like the current MAPSET.
 eval $(g.gisenv)
@@ -51,16 +52,26 @@ eval $(g.gisenv)
 
 # Check whether a vectorized version of the input raster exists; create one if
 # not.
-eval `g.findfile element=vector mapset=${MAPSET} file=${VECT_INPUT}` 
+eval $(g.findfile element=vector mapset=${MAPSET} file=${VECT_INPUT})
 : ${file?}
 
 VECT_CHECK=$file
 
 g.region rast=${RAST_INPUT} res=${RES} -a
 
-[[ -z ${VECT_CHECK} ]] && echo -e "\nNo vector outline found for input map $RAST_INPUT; running r.mapcalc to create one...\n" && r.mapcalc "${RAST_INPUT}_vect = if(${RAST_INPUT}, 1, null())" --o  && r.to.vect in=${RAST_INPUT}_vect output=${VECT_INPUT} type=area --o --v 
+if [[ -z ${VECT_CHECK} ]] ; then
 
-grass /home/epatton/Projects/LL_temp/PERMANENT/ --exec $(v.get_grid_divisions.sh)
+	echo -e "\nNo vector version of input map $RAST_INPUT found; running r.mapcalc to create one...\n" 
+	r.mapcalc "${VECT_INPUT} = if(${RAST_INPUT}, 1, null())" --o  
+	r.to.vect in=${VECT_INPUT} output=${VECT_INPUT} type=area --o --v 
+
+else
+
+	echo -e "\nFound previously existing vector map matching $RAST_INPUT. Using it...\n"
+	sleep ${PAUSE}
+fi
+
+grass /home/epatton/04_PROJECTS/LL_temp/PERMANENT/ --exec $(v.get_grid_divisions.sh)
 v.proj --overwrite location=LL_temp mapset=PERMANENT input=LL_grid
 g.rename vect=LL_grid,${VECT_INPUT}_LL_grid --o
 v.select ain=${VECT_INPUT}_LL_grid bin=${VECT_INPUT} op=overlap output=${VECT_INPUT}_LL_tiles --o --v
@@ -76,4 +87,6 @@ for MAP in $(g.list type=vect pattern=${VECT_INPUT}_LL_tiles_cat*) ; do
 	r.out.demgeotiff ${MAP}
 done
 	
+[[ -f "tiles.txt" ]] && rm tiles.txt
+
 exit 0
