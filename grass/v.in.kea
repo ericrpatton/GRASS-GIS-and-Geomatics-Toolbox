@@ -58,7 +58,10 @@ echo -e "\nFiltering out null values from KEA file..."
 
 awk -F, '{
 	# If the Knudsen Client output null lat/long values in the .kea file, the following
-	# check will filter them out, and only output lines with non-zero coordinates.
+	# check will filter them out, and only output lines with non-zero coordinates. Also,
+	# if the first line of the file contains a header, skip it.
+
+	if ($1 ~ /ddmmyyyy/ ) { next }
 
 	if ($16 ~ /X000000000/ || $17 ~ /Y000000000/) {	next }
 	
