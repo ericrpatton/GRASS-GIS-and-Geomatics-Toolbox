@@ -31,6 +31,6 @@ MAP=$1
 
 [ -z "$MAP" ] &&  echo -e "\nError: $SCRIPT: No input rasters were given!" && exit 1
 
-r.out.gdal input=${MAP} output=${MAP}.tif format=GTiff type=Float32 nodata=-99999 -f --v --o 
+r.out.gdal input=${MAP} output=${MAP}.tif format=GTiff type=Float32 nodata=-99999 -f --o --q
 
 exit 0
