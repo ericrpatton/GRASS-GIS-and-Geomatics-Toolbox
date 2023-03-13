@@ -11,13 +11,13 @@
 #				to be the closest-fitting one possible.
 #				 
 # 
-# COPYRIGHT:    (c) 2019-2020 by Eric Patton
+# COPYRIGHT:    (c) 2019-2023 by Eric Patton
 #
 #                This program is free software under the GNU General Public
 #                License (>=v3). Read the file COPYING that comes with GRASS
 #                for details.
 # 
-# Last Modified: October 12, 2020
+# Last Modified: February 24, 2023
 #	by Author
 #	
 ############################################################################
@@ -25,6 +25,13 @@
 if  [ -z "$GISBASE" ] ; then
     echo "You must be in GRASS GIS to run this program."
     exit 1
+fi
+
+SCRIPT=$(basename $0)
+
+if [ "$#" -ne 1 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
+	echo -e "\nusage: $SCRIPT rastername\n"
+	exit 0
 fi
 
 exitprocedure()
