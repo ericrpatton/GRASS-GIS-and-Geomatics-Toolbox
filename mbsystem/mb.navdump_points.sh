@@ -60,7 +60,7 @@ fi
 echo -e "\nExporting navigation from MB-System bathymetry...please stand by.\n"
 
 mblist -F-1 -I ${DATALIST} -R${REGION} -OtXYHSL.F > tempnav.txt 
-awk 'NR % 10 == 0 {print $7, $8, $9, $10, $11, $1"/"$2"/"$3"/"$4"/"$5"/"$6, $12}' tempnav.txt | pv | proj -E `g.proj -jf` |  awk '{printf "%s %0.6f %0.6f %0.2f %0.2f %0.2f %0.2f %0.3f %s\n", $9, $1, $2, $3, $4, $5, $6, $7, $8}' > ${OUTPUT}
+awk 'NR % 10 == 0 {print $7, $8, $9, $10, $11, $1"/"$2"/"$3"/"$4"/"$5"/"$6, $12}' tempnav.txt | pv | proj -E $(g.proj -jf | sed 's/+type=crs//') |  awk '{printf "%s %0.6f %0.6f %0.2f %0.2f %0.2f %0.2f %0.3f %s\n", $9, $1, $2, $3, $4, $5, $6, $7, $8}' > ${OUTPUT}
 
 if [ "$?" -eq 0 ] ; then
 	echo -e "\nFinished!\n"
