@@ -19,6 +19,6 @@ fi
 INPUT=$1
 SUFFIX=`echo $1 | cut -d. -f2`
 
-proj -E -r `g.proj -jf` ${INPUT} | awk '{print $1, $2, $3, $4, $5}' | v.in.ascii in=- sep=space  output=`basename $INPUT .$SUFFIX` columns='Lat_DD double, Lon_DD double, Easting double, Northing double, Timestamp integer' x=3 y=4 cat=0 --o --v
+proj -E -r $(g.proj -jf | sed 's/+type=crs//') ${INPUT} | awk '{print $1, $2, $3, $4, $5}' | v.in.ascii in=- sep=space  output=`basename $INPUT .$SUFFIX` columns='Lat_DD double, Lon_DD double, Easting double, Northing double, Timestamp integer' x=3 y=4 cat=0 --o --v
 
 exit 0
