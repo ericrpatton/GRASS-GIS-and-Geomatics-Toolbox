@@ -220,7 +220,7 @@ OUTPUT=`echo ${INPUT} | tr '.' '_'`
 	
 # Convert the lat/longs into UTM's.
 
-awk -F, -v long_column=$LONG_COL -v lat_column=$LAT_COL 'NR > 1 {print $long_column, $lat_column}' $INPUT | proj -e 'ERROR' `g.proj -jf` +datum=WGS84 | awk 'BEGIN {OFS=","} $0 !~ /ERROR/ {print $1, $2}' > TMP_UTM_FILE.txt
+awk -F, -v long_column=$LONG_COL -v lat_column=$LAT_COL 'NR > 1 {print $long_column, $lat_column}' $INPUT | proj -e 'ERROR' $(g.proj -jf | sed 's/+type=crs//') +datum=WGS84 | awk 'BEGIN {OFS=","} $0 !~ /ERROR/ {print $1, $2}' > TMP_UTM_FILE.txt
 
 # Now store the eastings and northings into arrays, and print them out along with the rest of the columns of
 # data in the station table.
