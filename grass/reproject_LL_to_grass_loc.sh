@@ -39,6 +39,8 @@ if [ -z "$RES" ] ; then
 	RES=$(brief_gdal_LL_res.sh ${INPUT})
 fi
 
-gdalwarp -t_srs "`g.proj -jf`" -tr ${RES} ${RES} -r cubic -wm 2500 -wo "MAX_CPUS=4" -multi -overwrite ${INPUT} ${OUTPUT}
+NPROCS=$(nproc)
+
+gdalwarp -t_srs $(g.proj -jf | sed 's/+type=crs//') -tr ${RES} ${RES} -r cubic -wm 2500 -wo "MAX_CPUS=${NPROCS}" -multi -overwrite ${INPUT} ${OUTPUT}
 
 exit 0
