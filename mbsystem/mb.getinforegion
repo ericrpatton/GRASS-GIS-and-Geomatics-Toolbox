@@ -18,12 +18,12 @@
 # through the mbinfo -G flag.
 # 
 # WARNING: Some swath sonar file have poor GPS nav, and will have meaningless
-# positions close to but greater than 0. To keep mbinfo from reading these
+# positions close to but not equal to 0. To keep mbinfo from reading these
 # garbage files, the -R string is used as a filter to exclude positions outside
 # of Canadian and American territorial waters.
 #
 #
-# Last Modified: November 26, 2020
+# Last Modified: September 3, 2022
 #
 #############################################################################
 
@@ -41,7 +41,21 @@ DATALIST=$1
 # default to the MB-System standard datalist. If we are using the standard
 # "datalist.mb-1", use the default "mbinfo.txt" as well. Otherwise, use an
 # mbinfo text file whose name contains the input datalist's from the command-line.
-[[ -z ${DATALIST} ]] && DATALIST=datalist.mb-1 && MBINFO="mbinfo.txt" || MBINFO="$(basename $DATALIST .mb-1)_mbinfo.txt"
+
+# Cover the case where no datalist is given as input
+if [ -z ${DATALIST} ] ; then
+	DATALIST=datalist.mb-1
+	MBINFO="mbinfo.txt"
+
+# Cover the case where a datalist is given, and is the MB-System default one.
+elif [ ${DATALIST} == "datalist.mb-1" ] ; then
+	MBINFO="mbinfo.txt"
+
+# Cover the case where a datalist is given, but not the default.
+else
+	MBINFO="$(basename $DATALIST .mb-1)_mbinfo.txt"
+
+fi
 
 # Check if we have awk.
 if [ ! -x "`which awk`" ] ; then
@@ -58,7 +72,6 @@ trap 'echo -e "\n\nUser break or similar caught! Exiting.\n"
 exit 1' 2 3 15
 
 if [ ! -f ${MBINFO} ] ; then
-	
 	# Only read in positions that are reasonable for North American geographic
 	# bounds. 
 	mbinfo -F-1 -I ${DATALIST} -G -R-180/-25/30/89.5 -V > ${MBINFO}
