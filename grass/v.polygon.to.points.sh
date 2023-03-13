@@ -25,6 +25,6 @@ v.to.points --overwrite input=${INPUT}_line output=${INPUT}_points use=vertex la
 
 v.db.addcolumn map=${INPUT}_points column="Easting double precision, Northing double precision" layer=2
 v.to.db map=${INPUT}_points option=coor column="Easting, Northing" layer=2 --v --o 
-v.db.select map=${INPUT}_points layer=2 | awk -F"|" 'NR > 1 {print $3, $4}' | proj -I -E -s -f '%0.6f' `g.proj -jf` | awk 'BEGIN {printf "%-6s %-9s %-10s %-10s %-11s\n", "Point", "Easting", "Northing", "Latitude", "Longitude"} {printf "%-6d %-6.2f %7.2f %-2.6f %-2.6f\n", NR, $1, $2, $3, $4}' | tee ${INPUT}_coords.txt
+v.db.select map=${INPUT}_points layer=2 | awk -F"|" 'NR > 1 {print $3, $4}' | proj -I -E -s -f '%0.6f' $(g.proj -jf | sed 's/+type=crs//') | awk 'BEGIN {printf "%-6s %-9s %-10s %-10s %-11s\n", "Point", "Easting", "Northing", "Latitude", "Longitude"} {printf "%-6d %-6.2f %7.2f %-2.6f %-2.6f\n", NR, $1, $2, $3, $4}' | tee ${INPUT}_coords.txt
 
 exit 0
