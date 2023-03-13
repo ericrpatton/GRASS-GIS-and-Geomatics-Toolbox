@@ -9,18 +9,18 @@
 # 		         <Eric dot Patton at Canada dot ca>
 #
 # PURPOSE:       To print a list of rasters whose region intersect that of the
-# current computational region; also formts this list into a csv string suitable
+# current computational region; also formats this list into a csv string suitable
 # for use in r.patch.
 #				 
 #
-# COPYRIGHT:     (c) 2021 by Eric Patton
+# COPYRIGHT:     (c) 2021-2023 by Eric Patton
 #
 #                This program is free software under the GNU General Public
 #                License (>=v3). Read the file COPYING that comes with GRASS
 #                for details.
 # 
 # Created:		 May 18, 2021
-# Last Modified: May 18, 2021
+# Last Modified: February 27, 2023
 #
 #############################################################################
 
@@ -45,23 +45,16 @@ exitprocedure()
 trap 'exitprocedure' 2 3 15
 
 if [ "$#" -ne 1 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
-	echo -e "\nusage: $SCRIPT wildcard_pattern \n"
+	echo -e "\nusage: $SCRIPT rastername \n"
 	exit 1
 fi
 
-[ -f "compregion_rasterlist.txt" ] && rm compregion_rasterlist.txt
-[ -f "compregion_patching_list.txt" ] && rm compregion_patching_list.txt
+MAP=$1
 
-PATTERN=$1
-
-for MAP in $(g.list type=rast pattern="${PATTERN}") ; do
-	CELL_COUNT=$(r.univar map=${MAP} -g | grep "^n=" | cut -d'=' -f2)
+CELL_COUNT=$(r.univar map=${MAP} -g | grep "^n=" | cut -d'=' -f2)
 	
-	[ ${CELL_COUNT} -gt 1 ] && echo ${MAP} && echo ${MAP} >> compregion_rasterlist.txt
-done
+[ ${CELL_COUNT} -gt 1 ] && echo ${MAP} | tee -a compregion_rasterlist.txt
 
-cat compregion_rasterlist.txt | awk 'BEGIN {ORS=","} {print $1}' | sed 's/,$//' > compregion_patching_list.txt
-
-echo -e "\nDone."
+awk 'BEGIN {ORS=","} {print $1}' compregion_rasterlist.txt 2>/dev/null | sed 's/,$//' > compregion_patching_list.txt
 
 exit 0
