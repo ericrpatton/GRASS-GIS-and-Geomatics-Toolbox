@@ -41,7 +41,7 @@ for FILE in `cat LIST.txt` ; do
 	echo -e "\n\n========================================================"
 	echo -e "\nWorking on line $FILE (file $COUNTER of $LIST_LENGTH)...please standby.\n"
 
-	mblist -F${FORMAT_ID} -I ${FILE} -D2 | awk '{print $1, $2, -$3}' | proj `g.proj -jf` | pv | awk '{print $1, $2, $3}' > ${XYZ_OUTPUT}
+	mblist -F${FORMAT_ID} -I ${FILE} -D2 | awk '{print $1, $2, -$3}' | proj $(g.proj -jf | sed 's/+type=crs//') | pv | awk '{print $1, $2, $3}' > ${XYZ_OUTPUT}
 
 	import_xyz.sh ${XYZ_OUTPUT}
 	r.colors map=${OUTPUT} color=bof_unb --v
