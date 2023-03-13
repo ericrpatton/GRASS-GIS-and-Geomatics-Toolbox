@@ -4,7 +4,7 @@
 # reproject_to_grass_loc.sh: A simple script to reproject an input raster to
 # the current GRASS location projection.
 #
-# Last modified: December 5, 2019
+# Last modified: October 27, 2022
 #
 #############################################################################
 
@@ -31,6 +31,7 @@ OUTPUT="$(basename $INPUT $SUFFIX)_reproj$SUFFIX"
 # geotiffs
 RES=$(brief_gdal_res.sh ${INPUT})
 
-gdalwarp -t_srs "`g.proj -jf`" -tr ${RES} ${RES} -r cubic -wm 2500 -wo "MAX_CPUS=4" -multi ${INPUT} ${OUTPUT}
+NPROC=$(nproc)
+gdalwarp -t_srs $(g.proj -jf | sed 's/+type=crs//') -tr ${RES} ${RES} -r cubic -wm 10000 -wo MAX_CPUS=${NPROC}" -multi ${INPUT} ${OUTPUT}
 
 exit 0
