@@ -75,7 +75,7 @@ EAST=$(echo $INFO_COORDS | cut -d'/' -f2)
 SOUTH=$(echo $INFO_COORDS | cut -d'/' -f3)
 NORTH=$(echo $INFO_COORDS | cut -d'/' -f4)
 
-proj $(g.proj -jf) <<EOF > bounding_coords.txt
+proj $(g.proj -jf | sed 's/+type=crs//') <<EOF > bounding_coords.txt
 $WEST $SOUTH
 $WEST $NORTH
 $EAST $NORTH
