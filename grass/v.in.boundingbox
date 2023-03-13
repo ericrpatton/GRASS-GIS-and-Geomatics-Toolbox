@@ -60,7 +60,7 @@
 #% key: resolution
 #% type: integer
 #% required: no 
-#% answer: 30
+#% answer: 20
 #% description: Resolution of raster bounding box (used with -r flag)
 #%END
 
@@ -82,6 +82,7 @@ cleanup()
 {
 	rm bounding_coords.txt
 	rm bounding_coords_clean.txt
+	echo -e "\n$SCRIPT done."
 }
 
 exitprocedure()
@@ -138,7 +139,7 @@ elif [ "$GIS_FLAG_i" -eq 1 ] ; then
 	NORTH=$(echo $INFO_COORDS | cut -d'/' -f4)
 
 	echo -e "Projecting bounding coordinates to local Grass projection...\n"
-	proj $(g.proj -jf) <<EOF > bounding_coords.txt
+	proj $(g.proj -jf | sed 's/+type=crs//') <<EOF > bounding_coords.txt
 $WEST $SOUTH
 $WEST $NORTH
 $EAST $NORTH
@@ -157,7 +158,7 @@ else
 	read -p "Enter the maximum south latitude: " SOUTH 
 	read -p "Enter the maximum north latitude: " NORTH
 
-proj `g.proj -jf` <<EOF > bounding_coords.txt
+proj $(g.proj -jf | sed 's/+type=crs//') <<EOF > bounding_coords.txt
 $WEST $SOUTH
 $WEST $NORTH
 $EAST $NORTH
@@ -172,7 +173,7 @@ awk 'BEGIN {print "B 5 1"} {print " "$1, $2} END {print "1 1"}' bounding_coords.
 
 # Import to Grass vector format.
 echo -e "Importing boundingbox coords to vector format...\n"
-v.in.ascii -n input=- output=${BOUNDINGBOX} format=standard sep=space < bounding_coords_clean.txt
+v.in.ascii -n input=- output=${BOUNDINGBOX} format=standard sep=space < bounding_coords_clean.txt --o
 
 # Add centroids to new bounding box
 v.centroids input=${BOUNDINGBOX} output=TEMP --o --q
@@ -195,7 +196,5 @@ fi
 
 # Cleanup
 cleanup
-
-echo -e "\n$SCRIPT done."
 
 exit 0
