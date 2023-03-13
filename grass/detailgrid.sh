@@ -34,7 +34,7 @@ echo ""
 echo -e "\nExporting xyz bathy at the following rate:\n"
 
 if [ ! -f "$OUTPUT" ] ; then
-	mblist -F-1 -I datalist.mb-1 -D2 -R`mb.getregion` | awk '{print $1, $2, -$3}' | proj `g.proj -jf` | pv | awk '{print $1, $2, $3}' > ${OUTPUT}
+	mblist -F-1 -I datalist.mb-1 -D2 -R`mb.getregion` | awk '{print $1, $2, -$3}' | proj $(g.proj -jf | sed 's/+type=crs//') | pv | awk '{print $1, $2, $3}' > ${OUTPUT}
 fi
 
 g.align.xyz in=${OUTPUT} fs=space res=${RES}
