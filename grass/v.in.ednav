@@ -98,7 +98,7 @@ for FILE in `ls -1 ${PATTERN}` ; do
 		echo -e "\nProjected location detected; projecting lat-long coordinates...\n"
 		sleep 1
 
-		awk -F, 'NR > 5 && NF == 7 {print $7, $6, $1, $2, $3, $4, $5}' ${FILE} | proj `g.proj -jf` | awk '{print $1, $2, $3, $4, $5, $6, $7}' | v.in.ascii output=$OUTPUT cat=0 columns='Easting double, Northing double, Exped_Code int, Segment_Number int, Year int, Julian_Day int, HHMMSS varchar(10)' fs=space --o --v
+		awk -F, 'NR > 5 && NF == 7 {print $7, $6, $1, $2, $3, $4, $5}' ${FILE} | proj $(g.proj -jf | sed 's/+type=crs//') | awk '{print $1, $2, $3, $4, $5, $6, $7}' | v.in.ascii output=$OUTPUT cat=0 columns='Easting double, Northing double, Exped_Code int, Segment_Number int, Year int, Julian_Day int, HHMMSS varchar(10)' fs=space --o --v
 	fi
 
 done
