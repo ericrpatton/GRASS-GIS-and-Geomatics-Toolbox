@@ -1,0 +1,3 @@
+Data Dump Command:
+ 
+dd bs=4M if=path/to/filename.iso of=/dev/sdx conv=noerror,sync oflag=direct status=progress

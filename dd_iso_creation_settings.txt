@@ -1,0 +1,30 @@
+Optimal dd flags for creating a bootable disk image
+
+Caveats:
+
+-	The disk which is being copied to *must* be the same size or larger than the
+	iso image being copied.
+
+- never ever use dd (or any other tool) to modify a partition that's currently
+  mounted! Unmount it first. Anything else virtually guarantees corruption as
+  the filesystem driver and whatever tool you're using step on each other.
+
+
+Flags:
+
+conv: conv=sync,noerror tells dd that if it can't read a block due to a read
+error, then it should at least write something to its output of the correct
+length.
+
+bs: block size, how big a chunk should the data be parsed by. Determine an
+	optimal setting to use by running the script "dd_obs_test.sh" in
+	~/coderepo/.
+
+noerror: Continue after read errors.
+
+oflag=direct: use direct I/O for data.
+
+status: The LEVEL of information to print to stderr; 'progress' shows periodic
+transfer statistics.
+
+dd bs=4M if=path/to/filename.iso of=/dev/sdx conv=noerror,sync oflag=direct status=progress

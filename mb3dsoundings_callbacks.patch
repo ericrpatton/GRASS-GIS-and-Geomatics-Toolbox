@@ -1,0 +1,20 @@
+--- mb3dsoundings_callbacks.c	2022-11-07 02:55:13.000000000 -0400
++++ /usr/local/MB-System-5.7.9beta44/src/mbview/mb3dsoundings_callbacks.c	2022-10-21 14:58:22.547275493 -0300
+@@ -732,7 +732,7 @@
+   /* drawing variables */
+   mb3dsoundings.elevation = 0.0;
+   mb3dsoundings.azimuth = 0.0;
+-  mb3dsoundings.exageration = 1.0;
++  mb3dsoundings.exageration = 10.0;
+   mb3dsoundings.gl_width = 0;
+   mb3dsoundings.gl_height = 0;
+   ;
+@@ -3191,7 +3191,7 @@
+   /* reset view orientation */
+   mb3dsoundings.elevation = 0.0;
+   mb3dsoundings.azimuth = 0.0;
+-  mb3dsoundings.exageration = 1.0;
++  mb3dsoundings.exageration = 10.0;
+ 
+   /* rescale */
+   mb3dsoundings_scalez(mbs_verbose, &mbs_error);

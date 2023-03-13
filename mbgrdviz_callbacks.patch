@@ -1,0 +1,33 @@
+--- mbgrdviz_callbacks.c	2022-11-07 02:55:13.000000000 -0400
++++ /home/epatton/MB-System-5.7.9beta44/src/mbgrdviz/mbgrdviz_callbacks.c	2022-10-21 12:02:20.111912166 -0300
+@@ -1704,16 +1704,16 @@
+       mbv_secondary_colortable_mode = MBV_COLORTABLE_NORMAL;
+       // double mbv_secondary_colortable_min = 0.0;
+       // double mbv_secondary_colortable_max = 0.0;
+-      mbv_exageration = 1.0;
++      mbv_exageration = 10.0;
+       mbv_modelelevation3d = 90.0;
+       mbv_modelazimuth3d = 0.0;
+       mbv_viewelevation3d = 90.0;
+       mbv_viewazimuth3d = 0.0;
+-      mbv_illuminate_magnitude = 1.0;
+-      mbv_illuminate_elevation = 5.0;
++      mbv_illuminate_magnitude = 5.0;
++      mbv_illuminate_elevation = 15.0;
+       mbv_illuminate_azimuth = 90.0;
+-      mbv_slope_magnitude = 1.0;
+-      mbv_overlay_shade_magnitude = 1.0;
++      mbv_slope_magnitude = 5.0;
++      mbv_overlay_shade_magnitude = 5.0;
+       mbv_overlay_shade_center = 0.0;
+       mbv_overlay_shade_mode = MBV_COLORTABLE_NORMAL;
+       mbv_contour_interval = pow(10.0, floor(log10(mbv_primary_max - mbv_primary_min)) - 1.0);
+@@ -1949,7 +1949,7 @@
+       mbv_secondary_colortable_mode = MBV_COLORTABLE_NORMAL;
+       mbv_secondary_colortable_min = mbv_secondary_min;
+       mbv_secondary_colortable_max = mbv_secondary_max;
+-      mbv_overlay_shade_magnitude = 1.0;
++      mbv_overlay_shade_magnitude = 5.0;
+       mbv_overlay_shade_center = 0.5 * (mbv_secondary_max + mbv_secondary_min);
+       mbv_overlay_shade_mode = MBV_COLORTABLE_NORMAL;
+     }
