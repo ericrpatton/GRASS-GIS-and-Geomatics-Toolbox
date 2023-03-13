@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# MODULE:        smoothpatch_gridlist.sh for Grass 7.*
+# MODULE:        smoothpatch_gridlist.sh 
 # 
 # AUTHOR:   	 Eric Patton, Geological Survey of Canada (Atlantic)
 #		 		 <Eric dot Patton at Canada dot ca>
@@ -9,13 +9,13 @@
 #				 producing an output mosaic that will (hopefully) have smooth
 #				 and less-noticeable edges.  
 #
-# COPYRIGHT:    (c) 2020 by Eric Patton
+# COPYRIGHT:    (c) 2020-2023 by Eric Patton
 #
 #                This program is free software under the GNU General Public
 #                License (>=v3). Read the file COPYING that comes with GRASS
 #                for details.
 # 
-# Last Modified: November 26, 2020
+# Last Modified: February 14, 2023
 #	by Author
 #
 # NOTE: All raster maps in the gridlist MUST be in the current Grass mapset for
@@ -45,8 +45,18 @@ if [ "$#" -ne 2 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "
 	exit 1
 fi
 
+# Check if we have r.patch.smooth installed.
+
+if [ ! -x "$(which r.patch.smooth)" ] ; then
+	echo "$SCRIPT: r.patch.smooth required, please install it from Grass addons using g.extension first." 2>&1
+	exit 1
+fi
+
 LIST=$1
 RES=$2
+
+# NOTE: This script only works on raster maps that actually overlap, so before
+# running the script, amalgamte all separate map sections together.
 
 readarray -t gridlist < ${LIST}
 
@@ -58,10 +68,18 @@ while [[ -n ${gridlist[$COUNTER]} && -n ${gridlist[$(($COUNTER + 1))]} ]] ; do
 	RAST_A=${gridlist[$COUNTER]}
 	RAST_B=${gridlist[$(($COUNTER + 1))]}
 
-	#g.region rast=${RAST_A},${RAST_B} res=${RES} -a
-	g.region res=${RES} -a
+	echo -e "\nProcessing array elements $COUNTER and $(($COUNTER + 1))"
+	sleep 3
+
+	echo -e "\nRaster A will be ${RAST_A}."
+	echo "Raster B will be ${RAST_B}."
+	sleep 3
+
+	g.region rast=${RAST_A},${RAST_B} res=${RES} -a
+	#g.region res=${RES} -a
 
 	echo -e "\nRunning r.patch.smooth on rasters $COUNTER and $(($COUNTER + 1)); please standby...\n"
+	sleep 2
 
 	r.patch.smooth -s input_a=${RAST_A} input_b=${RAST_B} out=${OUTPUT} tr=3 para=11 diff=9 --v --o
 	unset gridlist[$(($COUNTER + 1))] 
