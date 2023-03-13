@@ -60,7 +60,11 @@ echo "Number_of_Points is $NUMBER_OF_POINTS"
 # TO-DO: re-write the awk statement below to use printf instead of print, to
 # enable the preservation of timestamps with padded zeros.
 # Import Points
-awk 'NF != 3 {next} ; {print $2, $3, $1}' ${INPUT} | proj -E -r `g.proj -jf` +datum=WGS84 | awk '{print $5, $3, $4, $1, $2}' | v.in.ascii -i input=- format=point output=${BASENAME}_points sep=space columns='Timestamp int, Easting double precision, Northing double precision, Latitude double precision, Longitude double precision' x=2 y=3 --o --v 
+#
+# Note: As of proj version 8.2, the '+type=crs' string isn't accepted, so that
+# portion has to be removed from the g.proj output.
+
+awk 'NF != 3 {next} ; {print $2, $3, $1}' ${INPUT} | proj -E -r $(g.proj -jf | sed 's/+type=crs//') +datum=WGS84 | awk '{print $5, $3, $4, $1, $2}' | v.in.ascii -i input=- format=point output=${BASENAME}_points sep=space columns='Timestamp int, Easting double precision, Northing double precision, Latitude double precision, Longitude double precision' x=2 y=3 --o --v 
 
 if [ "$?" -ne 0 ] ; then
 	echo -e "\n$SCRIPT: Error encountered processing points! Exiting.\n"	
@@ -70,7 +74,7 @@ else
 fi
 
 # Import Lines
-awk  'NF != 3 {next} ; {print $2, $3, $1}' ${INPUT} | proj -r `g.proj -jf` +datum=WGS84 | awk -v num_points=$NUMBER_OF_POINTS 'BEGIN {print "L " num_points " 1"} {print $1, $2, $3} END {print "1 1"}' | v.in.ascii -n input=- format=standard output=${BASENAME}_lines sep=space columns='Easting double precision, Northing double precision, Timestamp int' x=1 y=2 --o --v 
+awk  'NF != 3 {next} ; {print $2, $3, $1}' ${INPUT} | proj -r $(g.proj -jf | sed 's/+type=crs//') +datum=WGS84 | awk -v num_points=$NUMBER_OF_POINTS 'BEGIN {print "L " num_points " 1"} {print $1, $2, $3} END {print "1 1"}' | v.in.ascii -n input=- format=standard output=${BASENAME}_lines sep=space columns='Easting double precision, Northing double precision, Timestamp int' x=1 y=2 --o --v 
 
 if [ "$?" -ne 0 ] ; then
 	echo -e "\n$SCRIPT: Error encountered processing lines! Exiting.\n"	
