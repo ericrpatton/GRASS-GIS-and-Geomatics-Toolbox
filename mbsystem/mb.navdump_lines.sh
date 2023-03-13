@@ -58,7 +58,7 @@ fi
 # program v.in.lines.
 
 echo -e "\nExporting navigation from MB-System bathymetry...please stand by.\n"
-mbnavlist -F-1 -I ${DATALIST} -R${REGION} -OXY -D10 -Z'swathfile' | pv | proj -t'#' `g.proj -jf` | awk '{print $1, $2}' | sed 's/#/NaN NaN/' > ${OUTPUT}
+mbnavlist -F-1 -I ${DATALIST} -R${REGION} -OXY -D10 -Z'swathfile' | pv | proj -t'#' $(g.proj -jf | sed 's/+type=crs//') | awk '{print $1, $2}' | sed 's/#/NaN NaN/' > ${OUTPUT}
 
 if [ "$?" -eq 0 ] ; then
 	echo "Done!"
