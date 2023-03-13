@@ -1,5 +1,7 @@
 #! /bin/bash
 
+INPUT=$1
+
 INPUT_SUFFIX=$(echo $INPUT | cut -d'.' -f2)
 INPUT_BASE=$(basename $INPUT .$INPUT_SUFFIX)
 OUTPUT=${INPUT_BASE}
