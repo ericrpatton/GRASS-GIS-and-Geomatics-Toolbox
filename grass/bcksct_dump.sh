@@ -52,6 +52,6 @@ if [ -z ${OUTPUT} ] ; then
 fi
 
 echo -e "\nExporting xyz backscatter at the following rate:\n"
-mblist -F-1 -I ${DATALIST} -R${REGION} -D4 | awk '{print $1, $2, -$3}' | proj `g.proj -jf` | pv | awk '{print $1, $2, $3}' > ${OUTPUT}
+mblist -F-1 -I ${DATALIST} -R${REGION} -D4 | awk '{print $1, $2, -$3}' | proj $(g.proj -jf | sed 's/+type=crs//') | pv | awk '{print $1, $2, $3}' > ${OUTPUT}
 
 exit 0 
