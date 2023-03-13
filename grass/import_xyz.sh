@@ -45,6 +45,6 @@ echo ""
 
 g.align.xyz in=${INPUT} sep=space res=${RES}
 
-r.in.xyz in=${INPUT} sep=space output=${OUTPUT} percent=25 --v --o 
+r.in.xyz in=${INPUT} sep=space output=${OUTPUT} percent=100 --v --o 
 
 exit 0 
