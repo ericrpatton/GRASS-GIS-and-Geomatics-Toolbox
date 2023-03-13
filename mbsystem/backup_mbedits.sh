@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 ############################################################################
 #
@@ -7,7 +8,7 @@
 # 		         <Eric dot Patton at Canada dot ca>
 #
 # PURPOSE:       To use rsync to recursively backup all edit save files (*.esf)
-#				 that exist recursively in the current directory, and copy them to the
+#				 that exist in the current directory, and copy them to the
 # 				 specified backup location.
 #
 # COPYRIGHT:     (c) 2021 by Eric Patton
