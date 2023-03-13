@@ -271,7 +271,8 @@ if [ "$GIS_FLAG_m" -eq 1 ] ; then
 			
 			COUNT=$(($COUNT + 1))
 
-			INPUT=${INPUT}_fill
+			# The default neighbourhood filter size in fillnull.sh is 3.
+			INPUT=${INPUT}_fill3
 
 		done
 
@@ -280,7 +281,7 @@ if [ "$GIS_FLAG_m" -eq 1 ] ; then
 		echo ""
 
 		fillnulls.sh ${INPUT}		
-		INPUT=${INPUT}_fill
+		INPUT=${INPUT}_fill3
 	fi			
 
 	echo "Finished median filtering."
