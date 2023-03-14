@@ -9,7 +9,7 @@
 # 		         <Eric dot Patton at Canada dot ca>
 #
 # PURPOSE:       To do some basic basic preprocessing and housekeeping for a
-#				 directory bathymetry files. The rawdata format is gleaned by looking at the
+#				 directory of bathymetry files. The rawdata format is gleaned by looking at the
 # 				 extension of the first file in the directory, which may not always be correct.
 # 				 A rawdata datalist is then created, along with a platform file (if possible),
 # 				 and the mbpreprocess script is run on these files. Usually, in a directory
@@ -29,7 +29,7 @@
 #                for details.
 # 
 # Created:		 February 8, 2021
-# Last Modified: February 1, 2022
+# Last Modified: February 11, 2022
 #
 #############################################################################
 
@@ -66,7 +66,7 @@ mbm_makedatalist -S.${PROCESSED_FORMAT} -V
 # Some older sonar formats will not generate a processed file format from
 # mbpreprocess, and hence the mbm_makedatalist call above will not produce a
 # new and different datalist from the input raw format. So we need to catch
-# that condition below, particularly because quicknav.sh and quickbathy.sh
+# that condition below, particularly because quicknavplot.sh and quickbathyplot.sh
 # depend on there being a file with datalist.mb-1 in the current directory.
 
 [[ ! -f "datalist.mb-1" ]] && cp datalist_raw.mb-1 datalist.mb-1
