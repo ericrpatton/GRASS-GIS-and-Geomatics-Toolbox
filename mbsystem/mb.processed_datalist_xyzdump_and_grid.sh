@@ -47,7 +47,7 @@ CPUS=`lscpu | grep CPU\(s\): | awk '{print $2}'`
 # mbinfo.txt exists, and if not, will create it.
 [[ -z ${REGION} ]] && REGION=`mb.getinforegion`
 
-#mbclean -F-1 -I${DATALIST} -M1 -C75/2 -D0.01/0.2 -G0.98/1.02 -Z
+mbclean -F-1 -I${DATALIST} -M1 -C75/2 -D0.01/0.2 -G0.98/1.02 -Z
 mbprocess -C${CPUS} -I datalist.mb-1 
 xyzdump.sh datalistp.mb-1 ${REGION} ${OUTPUT_XYZ}
 import_xyz.sh ${OUTPUT_XYZ} ${RES}
