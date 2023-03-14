@@ -118,7 +118,7 @@ for CAT in $(seq 1 ${RAND}) ; do
 			sleep ${SLEEP}
 		
 			echo -e "\nRunning gdalwarp...\n"
-			gdalwarp -overwrite -s_srs "EPSG:4326" -t_srs "$(g.proj -jf)" -tr ${RES} ${RES} -r bilinear -multi -wo NUM_THREADS=4 -of "GTiff" ${GRID_BASENAME}.grd ${TIFF}
+			gdalwarp -overwrite -s_srs "EPSG:4326" -t_srs $(g.proj -jf | sed 's/+type=crs//') -tr ${RES} ${RES} -r bilinear -multi -wo NUM_THREADS=4 -of "GTiff" ${GRID_BASENAME}.grd ${TIFF}
 			sleep ${SLEEP}
 
 			echo -e "\n Importing into GRASS GIS...\n"
