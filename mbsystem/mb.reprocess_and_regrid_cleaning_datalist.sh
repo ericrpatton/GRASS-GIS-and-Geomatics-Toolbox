@@ -9,7 +9,7 @@
 # 		         <Eric dot Patton at Canada dot ca>
 #
 # PURPOSE:       To reprocess a datalist after some edits have been done, then
-# regrid the processed data and view the grid in mbgrdviz. Uses the current
+# regrids the processed data and views the grid in mbgrdviz. Uses the current
 # Grass geographic region as gridding bounds.
 #
 # COPYRIGHT:     (c) 2021 by Eric Patton
@@ -54,7 +54,7 @@ RES=$2
 [[ -z ${RES} ]] && RES=100
 [[ ! -f "${PROCESSED_DATALIST}" ]] && mbdatalist -F-1 -I ${DATALIST} -Z
 
-mbprocess -C8 -F-1 -I ${DATALIST} 
+mbprocess -C16 -F-1 -I ${DATALIST} 
 mbgrid -A2 -E${RES}/${RES}/meters! -F1 -I ${PROCESSED_DATALIST} -JEPSG:3395 -R$(mb.getregion) -V -O "${OUTPUT_ROOT}"
 
 [[ "$?" -eq 0 ]] && echo -e "\nProduced output grid ${OUTPUT_ROOT}.grd.\n"
