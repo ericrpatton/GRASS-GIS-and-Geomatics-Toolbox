@@ -17,17 +17,27 @@ exitprocedure()
 # Setup clean exit for Ctrl-C or similar breaks.
 trap 'exitprocedure' 2 3 15
 
-if [ "$#" -ne 1 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
+if [ "$#" -eq 0 -o "$#" -gt 2 -o "$1" == "-H" -o "$1" == "-h" -o "$1" == "--help" -o "$1" == "-help" ] ; then
 	echo -e "\nusage: $SCRIPT DATALIST [REGION (w/e/s/n)]"
-	exit 1
+	echo "Use with the raw datalist.mb-1, *not* datalistp.mb-1!"
+	exit 0
 fi
 
 DATALIST=${1}
 PROCESSED_DATALIST="$(basename ${DATALIST} .mb-1)p.mb-1"
+PLOTNAME="$(basename $PROCESSED_DATALIST .mb-1)_Bathyplot"
+CMD_NAME="${PLOTNAME}.cmd"
+PSNAME="${PLOTNAME}.ps"
+PDFNAME="$(basename $PSNAME .ps).pdf"
+
 [[ ! -f "${PROCESSED_DATALIST}" ]] && mbdatalist -F-1 -I ${DATALIST} -Z
 
 [[ -z ${2} ]] && REGION=$(mb.getinforegion $DATALIST) || REGION=$2 
 
-mbm_plot -F-1 -I ${PROCESSED_DATALIST} -A5/315 -G2 -R${REGION} -V -MGU-0.75/-1.75 -T -MTW0.75 -MTDh -MTG222/184/135 -L" " -O "$(basename $PROCESSED_DATALIST .mb-1)_Bathyplot" 
+mbm_plot -F-1 -I ${PROCESSED_DATALIST} -A5/315 -G2 -R${REGION} -V -MGU/-0.75/-2 -T -MTW0.75 -MTDh -MTG222/184/135 -L" " -O ${PLOTNAME}
+bash ./${CMD_NAME} && sleep 2 && ps2pdf ${PSNAME} > ${PDFNAME}
+
+[[ -f ${PSNAME} ]] && rm ${PSNAME}
+[[ -f ${CMD_NAME} ]] && rm ${CMD_NAME}
 
 exit 0
