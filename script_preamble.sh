@@ -17,7 +17,7 @@
 # PURPOSE:       This is a collection of script fragments that I use over and
 # over, which should be sourced in scripts they are needed in.
 #
-# COPYRIGHT:     (c) 2022 by Eric Patton
+# COPYRIGHT:     (c) 2023 by Eric Patton
 #
 #                This program is free software under the GNU General Public
 #                License (>=v3). 
@@ -46,3 +46,11 @@ exitprocedure()
 
 # Setup clean exit for Ctrl-C or similar breaks.
 trap 'exitprocedure' 2 3 15
+
+# Check if we have a particular program installed.
+
+if [ ! -x "$(which awk)" ] ; then
+	echo "$SCRIPT: awk required, please install awk or gawk first." 2>&1
+	exit 1
+fi
+
